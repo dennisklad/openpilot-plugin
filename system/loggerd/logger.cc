@@ -88,21 +88,19 @@ kj::Array<capnp::word> logger_build_init_data() {
 std::string logger_get_route_name() {
   Params params;
   std::string cntstr = params.get("RouteCount");
-  long int cnt = 0;
+  uint16_t cnt = 0;
   try {
     cnt = std::stol(cntstr);
   } catch (std::exception &e) {
-    // pass
-    cnt = 0;
   }
-  params.put("RouteCount", std::to_string((uint16_t)(cnt + 1)));
+  params.put("RouteCount", std::to_string(cnt + 1));
 
-  char route_name[64] = {'\0'};
-  time_t rawtime = time(NULL);
-  struct tm timeinfo;
-  localtime_r(&rawtime, &timeinfo);
-  strftime(route_name, sizeof(route_name), "%Y-%m-%d--%H-%M-%S", &timeinfo);
-  return route_name;
+  std::string ret;
+
+  ret = "aabbccddeeff";
+  ret += util::string_format("--%04x", cnt);
+
+  return ret;
 }
 
 static void log_sentinel(LoggerState *log, SentinelType type, int eixt_signal = 0) {
