@@ -9,8 +9,6 @@ from openpilot.tools.sim.bridge.common import SimulatorBridge
 from openpilot.tools.sim.bridge.metadrive.metadrive_world import MetaDriveWorld
 from openpilot.tools.sim.lib.camerad import W, H
 
-
-
 class CopyRamRGBCamera(RGBCamera):
   """Camera which copies its content into RAM during the render process, for faster image grabbing."""
   def __init__(self, *args, **kwargs):
@@ -26,7 +24,6 @@ class CopyRamRGBCamera(RGBCamera):
     # img = np.swapaxes(img, 1, 0)
     img = img[::-1] # Flip on vertical axis
     return img
-
 
 class RGBCameraWide(CopyRamRGBCamera):
   def __init__(self, *args, **kwargs):

@@ -86,14 +86,20 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
   def spawn_world(self) -> World:
     pass
 
+  def log_sm(self):
+        line = '\n\n---------------------------------------------------------------------------------\n\n'
+        print('Hello'+line)
+        print('controlState:', self.simulated_car.sm['controlsState'] + line)
+        print('carControl',  self.simulated_car.sm['carControl'] + line)
+        print('carParams', self.simulated_car.sm['carParams'] + line)
+
   def _run(self, q: Queue):
     self.world = self.spawn_world()
 
     self.simulated_car = SimulatedCar()
     self.simulated_sensors = SimulatedSensors(self.dual_camera)
 
-    self.simulated_car_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_car.update, self.simulator_state),
-                                                                        100, self._exit_event))
+    self.simulated_car_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_car.update, self.simulator_state), 100, self._exit_event))
     self.simulated_car_thread.start()
 
     self.simulated_camera_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_sensors.send_camera_images, self.world),
@@ -105,6 +111,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       self.world.tick()
 
     while self._keep_alive:
+
       throttle_out = steer_out = brake_out = 0.0
       throttle_op = steer_op = brake_op = 0.0
 
@@ -184,3 +191,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       self.started = True
 
       self.rk.keep_time()
+
+      #self.log_sm()
+
+
