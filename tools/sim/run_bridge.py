@@ -6,6 +6,9 @@ from multiprocessing import Queue
 
 from openpilot.tools.sim.bridge.unreal.unreal_bridge import UnrealBridge
 
+import logging
+log = logging.getLogger('a')
+log.setLevel(logging.DEBUG)
 
 def parse_args(add_args=None):
   parser = argparse.ArgumentParser(description='Bridge between the simulator and openpilot.')
@@ -16,11 +19,15 @@ def parse_args(add_args=None):
   return parser.parse_args(add_args)
 
 if __name__ == "__main__":
+
   q: Any = Queue()
   args = parse_args()
 
   simulator_bridge = UnrealBridge(args)
-  p = simulator_bridge.run(q)                 # <------ 1) Calls the run function of unrealBridge
+  
+  log.debug('`UnrealBridge.run(q)` called. Init Bridge.')
+  # <------ 1) Calls the run function of unrealBridge
+  p = simulator_bridge.run(q)                 
 
   if args.joystick:
     # start input poll for joystick

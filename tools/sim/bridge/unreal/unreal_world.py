@@ -8,10 +8,18 @@ from multiprocessing import Pipe, Array
 from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.camerad import W, H
 
+from mss import mss
+from PIL import Image
+
+import logging
+log = logging.getLogger('a')
+
 class UnrealWorld(World):
   
   def __init__(self):
     
+    log.debug('Starting init of UnrealWorld')
+
     super().__init__(dual_camera=False)
 
     self.camera_array = Array(ctypes.c_uint8, W*H*3)
@@ -26,13 +34,16 @@ class UnrealWorld(World):
 
     self.exit_event = multiprocessing.Event()
 
-    # wait for a state message to ensure metadrive is launched
-    self.state_recv.recv() 
+    # wait for a state message to ensure sim is launched
+    log.info('Waiting for the state message to ensure sim is launched')
+    #self.state_recv.recv() 
 
     self.steer_ratio = 15
     self.vc = [0.0,0.0]
     self.reset_time = 0
     self.should_reset = False
+
+    log.debug('UnrealWorld initiated.')
 
   def apply_controls(self, steer_angle, throttle_out, brake_out):
     if (time.monotonic() - self.reset_time) > 2:
@@ -59,8 +70,16 @@ class UnrealWorld(World):
       state.valid = True
 
   def read_cameras(self):
-    pass
+    with mss() as sct:
+      # Get raw pixels from the screen
+      monitor = {"top": 0, "left": 0, "width": W, "height": H}
+      sct_img = sct.grab(monitor)
 
+      # TODO: Maybe better as Numpy array instead of PIL
+      img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+
+      return np.array(img).reshape((W,H,3))
+    
   def tick(self):
     pass
 
@@ -69,4 +88,3 @@ class UnrealWorld(World):
 
   def close(self):
     self.exit_event.set()
-    self.unreal_process.join()

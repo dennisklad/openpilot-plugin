@@ -1,3 +1,5 @@
+capnproto-*/
+*.tar.gz
 venv/
 .venv/
 .ci_cache
