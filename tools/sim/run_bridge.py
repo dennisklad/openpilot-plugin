@@ -4,7 +4,7 @@ import argparse
 from typing import Any
 from multiprocessing import Queue
 
-from openpilot.tools.sim.bridge.metadrive.metadrive_bridge import MetaDriveBridge
+from openpilot.tools.sim.bridge.unreal.unreal_bridge import UnrealBridge
 
 
 def parse_args(add_args=None):
@@ -19,8 +19,8 @@ if __name__ == "__main__":
   q: Any = Queue()
   args = parse_args()
 
-  simulator_bridge = MetaDriveBridge(args)
-  p = simulator_bridge.run(q)
+  simulator_bridge = UnrealBridge(args)
+  p = simulator_bridge.run(q)                 # <------ 1) Calls the run function of unrealBridge
 
   if args.joystick:
     # start input poll for joystick

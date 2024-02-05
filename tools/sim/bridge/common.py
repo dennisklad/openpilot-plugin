@@ -16,7 +16,6 @@ from openpilot.tools.sim.lib.simulated_car import SimulatedCar
 from openpilot.tools.sim.lib.simulated_sensors import SimulatedSensors
 from openpilot.tools.sim.lib.keyboard_ctrl import KEYBOARD_HELP
 
-
 def rk_loop(function, hz, exit_event: threading.Event):
   rk = Ratekeeper(hz, None)
   while not exit_event.is_set():
@@ -54,7 +53,7 @@ class SimulatorBridge(ABC):
   def shutdown(self):
     self._keep_alive = False
 
-  def bridge_keep_alive(self, q: Queue, retries: int):
+  def bridge_keep_alive(self, q: Queue, retries: int):              # <----- 4) Launch _run Function with Queue
     try:
       self._run(q)
     finally:
@@ -67,8 +66,8 @@ class SimulatorBridge(ABC):
     if self.world is not None:
       self.world.close()
 
-  def run(self, queue, retries=-1):
-    bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))
+  def run(self, queue, retries=-1):                                # <----- 3) Start bridge_keep_alive Process
+    bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))  
     bridge_p.start()
     return bridge_p
 
@@ -83,7 +82,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
     """)
 
   @abstractmethod
-  def spawn_world(self) -> World:
+  def spawn_world(self) -> World:                                  # Overwritten in metadrive_bridge.py
     pass
 
   def log_sm(self):
@@ -93,17 +92,18 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
         print('carControl',  self.simulated_car.sm['carControl'] + line)
         print('carParams', self.simulated_car.sm['carParams'] + line)
 
-  def _run(self, q: Queue):
+  def _run(self, q: Queue):                                        # <----- 5) Spawn World, Car, Sensors and run the simulation
     self.world = self.spawn_world()
 
     self.simulated_car = SimulatedCar()
     self.simulated_sensors = SimulatedSensors(self.dual_camera)
 
-    self.simulated_car_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_car.update, self.simulator_state), 100, self._exit_event))
+    self.simulated_car_thread = threading.Thread(
+      target=rk_loop, args=(functools.partial(self.simulated_car.update, self.simulator_state), 100, self._exit_event))
     self.simulated_car_thread.start()
 
-    self.simulated_camera_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_sensors.send_camera_images, self.world),
-                                                                        20, self._exit_event))
+    self.simulated_camera_thread = threading.Thread(
+      target=rk_loop, args=(functools.partial(self.simulated_sensors.send_camera_images, self.world), 20, self._exit_event))
     self.simulated_camera_thread.start()
 
     # Simulation tends to be slow in the initial steps. This prevents lagging later
@@ -161,7 +161,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       # Update openpilot on current sensor state
       self.simulated_sensors.update(self.simulator_state, self.world)
 
-      self.simulated_car.sm.update(0)
+      self.simulated_car.sm.update(0)     # <---- Update the simcar through the SubMaster
       controlsState = self.simulated_car.sm['controlsState']
       self.simulator_state.is_engaged = controlsState.active
 

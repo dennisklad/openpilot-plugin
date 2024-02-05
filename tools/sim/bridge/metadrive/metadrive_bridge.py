@@ -8,6 +8,7 @@ from panda3d.core import Texture, GraphicsOutput
 from openpilot.tools.sim.bridge.common import SimulatorBridge
 from openpilot.tools.sim.bridge.metadrive.metadrive_world import MetaDriveWorld
 from openpilot.tools.sim.lib.camerad import W, H
+from openpilot.tools.sim.lib.common import World
 
 class CopyRamRGBCamera(RGBCamera):
   """Camera which copies its content into RAM during the render process, for faster image grabbing."""
@@ -82,9 +83,10 @@ class MetaDriveBridge(SimulatorBridge):
   def __init__(self, args):
     self.should_render = False
 
-    super(MetaDriveBridge, self).__init__(args)
+    super(MetaDriveBridge, self).__init__(args)   # <-------  2) Initialise SimulatorBridge
+ 
+  def spawn_world(self) -> World:
 
-  def spawn_world(self):
     sensors = {
       "rgb_road": (RGBCameraRoad, W, H, )
     }

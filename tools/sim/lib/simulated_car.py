@@ -96,7 +96,7 @@ class SimulatedCar:
       for i in range(16):
         msg.append(self.rpacker.make_can_msg("TRACK_%d" % i, 1, {"LONG_DIST": 255.5}))
 
-    self.pm.send('can', can_list_to_can_capnp(msg))
+    self.pm.send('can', can_list_to_can_capnp(msg))  # <---- Sending the CAN Message with capnp!
 
   def send_panda_state(self, simulator_state):
     self.sm.update(0)
