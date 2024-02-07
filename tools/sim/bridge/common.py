@@ -76,17 +76,7 @@ class SimulatorBridge(ABC):
     bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))  
     bridge_p.start()
     return bridge_p
-
-  def print_status(self):
-    print(
-    f"""
-Keyboard Commands:
-{KEYBOARD_HELP}
-
-State:
-Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_engaged}
-    """)
-
+  
   @abstractmethod
   def spawn_world(self) -> World:                                 
     # Overwritten in metadrive_bridge.py
@@ -177,7 +167,9 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       # log.debug('Updating the `simulated_sensor`')
       self.simulated_sensors.update(self.simulator_state, self.world)
 
-      self.simulated_car.sm.update(0)     # <---- Update the simcar through the SubMaster
+      self.simulated_car.sm.update(0)     
+      # <---- Update the simcar through the SubMaster
+      
       controlsState = self.simulated_car.sm['controlsState']
       self.simulator_state.is_engaged = controlsState.active
 
@@ -202,12 +194,11 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
         self.world.read_cameras()
 
       if self.rk.frame % 25 == 0:
-        self.print_status()
+        # print(f"\nKeyboard Commands:\n\n{KEYBOARD_HELP}\n\nState:\nIgnition: {self.simulator_state.ignition} | Engaged: {self.simulator_state.is_engaged}")
+        pass
 
       self.started = True
 
       self.rk.keep_time()
 
       #self.log_sm()
-
-

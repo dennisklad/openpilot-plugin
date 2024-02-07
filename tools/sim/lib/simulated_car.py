@@ -7,6 +7,8 @@ from openpilot.selfdrive.car import crc8_pedal
 from openpilot.tools.sim.lib.common import SimulatorState
 from panda.python import Panda
 
+import logging
+log = logging.getLogger('a')
 
 class SimulatedCar:
   """Simulates a honda civic 2016 (panda state + can messages) to OpenPilot"""
@@ -96,9 +98,13 @@ class SimulatedCar:
       for i in range(16):
         msg.append(self.rpacker.make_can_msg("TRACK_%d" % i, 1, {"LONG_DIST": 255.5}))
 
-    self.pm.send('can', can_list_to_can_capnp(msg))  # <---- Sending the CAN Message with capnp!
+    self.pm.send('can', can_list_to_can_capnp(msg))
+    
+    #log.debug('`simulated_car.send_can_messages` published a CAN Message with CAPNP')
+    # <---- Sending the CAN Message with capnp!
 
   def send_panda_state(self, simulator_state):
+
     self.sm.update(0)
     dat = messaging.new_message('pandaStates', 1)
     dat.valid = True
@@ -112,7 +118,15 @@ class SimulatedCar:
     }
     self.pm.send('pandaStates', dat)
 
+    if self.idx == 0:
+      log.debug(f'`simulated_car.send_panda_state` published following `pandaStates`:\n{dat}')
+
+
   def update(self, simulator_state: SimulatorState):
+
+    if self.idx == 0:
+      log.info('Updating the simulated car according to the simulator state.')
+
     self.send_can_messages(simulator_state)
 
     if self.idx % 50 == 0: # only send panda states at 2hz

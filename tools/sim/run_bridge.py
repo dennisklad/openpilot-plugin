@@ -5,6 +5,7 @@ from typing import Any
 from multiprocessing import Queue
 
 from openpilot.tools.sim.bridge.unreal.unreal_bridge import UnrealBridge
+from openpilot.tools.sim.bridge.metadrive.metadrive_bridge import MetaDriveBridge
 
 import logging
 log = logging.getLogger('a')
@@ -15,6 +16,7 @@ def parse_args(add_args=None):
   parser.add_argument('--joystick', action='store_true')
   parser.add_argument('--high_quality', action='store_true')
   parser.add_argument('--dual_camera', action='store_true')
+  parser.add_argument('--sim')
 
   return parser.parse_args(add_args)
 
@@ -23,10 +25,15 @@ if __name__ == "__main__":
   q: Any = Queue()
   args = parse_args()
 
-  simulator_bridge = UnrealBridge(args)
-  
-  log.debug('`UnrealBridge.run(q)` called. Init Bridge.')
-  # <------ 1) Calls the run function of unrealBridge
+  if args.sim == 'metadrive':
+    simulator_bridge = MetaDriveBridge(args)
+    log.debug('`MetaDriveBridge.run(q)` called. Init Bridge.')
+
+  else:
+    simulator_bridge = UnrealBridge(args)
+    log.debug('`UnrealBridge.run(q)` called. Init Bridge.')
+    # <------ 1) Calls the run function of unrealBridge
+
   p = simulator_bridge.run(q)                 
 
   if args.joystick:
