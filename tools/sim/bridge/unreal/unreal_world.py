@@ -5,11 +5,10 @@ import numpy as np
 import time
 
 from multiprocessing import Pipe, Array
+from openpilot.tools.sim.bridge.unreal.unreal_process import unreal_process, unreal_state
 from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.camerad import W, H
-
-from mss import mss
-from PIL import Image
+from openpilot.tools.sim.lib.common import vec3
 
 import logging
 log = logging.getLogger('a')
@@ -34,8 +33,19 @@ class UnrealWorld(World):
 
     self.exit_event = multiprocessing.Event()
 
+    self.unreal_process = multiprocessing.Process(name="unreal process",
+          target=functools.partial(unreal_process, 
+                self.camera_array, 
+                self.wide_camera_array, 
+                self.image_lock, 
+                self.controls_recv, 
+                self.state_send, 
+                self.exit_event))
+
+    self.unreal_process.start()
+
     # wait for a state message to ensure sim is launched
-    log.info('Waiting for the state message to ensure sim is launched')
+    #log.info('Waiting for the state message to ensure sim is launched')
     #self.state_recv.recv() 
 
     self.steer_ratio = 15
@@ -61,24 +71,29 @@ class UnrealWorld(World):
     self.should_reset = False
 
   def read_sensors(self, state: SimulatorState):
-    while self.state_recv.poll(0):
-      md_state = self.state_recv.recv()
-      state.velocity = md_state.velocity
-      state.bearing = md_state.bearing
-      state.steering_angle = md_state.steering_angle
-      state.gps.from_xy(md_state.position)
+    
+    # TODO state receiving.
+    # while self.state_recv.poll(0):
+      
+      # log.info('Reading the sensors ...')
+      
+      # Received state looks like this:
+      # metadrive_state(velocity=vec3(x=0.007272727321833372, y=0.0, z=0), position=(5.0, 3.5), bearing=0.0, steering_angle=0)
+
+      # TODO: Replace values in Unreal later
+      # for now its hardcoded.
+
+      # NO MD_STATE!!!
+      # md_state = self.state_recv.recv()
+      state.velocity = vec3(x=0.007272727321833372, y=0.0, z=0)
+      state.bearing = 0.0
+      state.steering_angle = 0
+      state.gps.from_xy((5.0, 3.5))
       state.valid = True
 
   def read_cameras(self):
-    with mss() as sct:
-      # Get raw pixels from the screen
-      monitor = {"top": 0, "left": 0, "width": W, "height": H}
-      sct_img = sct.grab(monitor)
+    pass
 
-      # TODO: Maybe better as Numpy array instead of PIL
-      img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
-
-      return np.array(img).reshape((W,H,3))
     
   def tick(self):
     pass
@@ -88,3 +103,4 @@ class UnrealWorld(World):
 
   def close(self):
     self.exit_event.set()
+    self.unreal_process.join()

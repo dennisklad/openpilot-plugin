@@ -1,12 +1,8 @@
-import numpy as np
-from mss import mss
-
-from panda3d.core import Texture, GraphicsOutput
-
 from openpilot.tools.sim.bridge.common import SimulatorBridge
 from openpilot.tools.sim.bridge.unreal.unreal_world import UnrealWorld
 from openpilot.tools.sim.lib.camerad import W, H
 from openpilot.tools.sim.lib.common import World
+
 import logging
 log = logging.getLogger('a')
 
