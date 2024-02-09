@@ -26,7 +26,9 @@ def unreal_process(camera_array, wide_camera_array, image_lock, controls_recv: C
       with mss() as sct:
         # log.info('Reading the cameras ...')
         # Get raw pixels from the screen
-        monitor = {"top": 0, "left": 0, "width": W, "height": H}
+        # Main monitor is the second one detected. TODO: Add this as argument?
+        main_monitor = sct.monitors[1]
+        monitor = {"top": main_monitor['top']+100, "left": main_monitor['left']+100, "width": W, "height": H}
         sct_img = sct.grab(monitor)
         # TODO: Maybe better as Numpy array instead of PIL
         img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")

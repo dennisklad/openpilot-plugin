@@ -63,7 +63,7 @@ class Camerad:
 
   def _send_yuv(self, yuv, frame_id, pub_type, yuv_type):
 
-    log.debug(f'`camerad` sending yuv image to {pub_type}...')
+    # log.debug(f'`camerad` sending yuv image to {pub_type}...')
     
     eof = int(frame_id * 0.05 * 1e9)
     self.vipc_server.send(yuv_type, yuv, frame_id, eof, eof)
@@ -78,5 +78,5 @@ class Camerad:
     setattr(dat, pub_type, msg)
     self.pm.send(pub_type, dat)
 
-    log.info(f'`camerad` send yuv image to {pub_type}.')
+    # log.info(f'`camerad` send yuv image to {pub_type}.')
     # log.info('Here is the dat:\n{dat}')
