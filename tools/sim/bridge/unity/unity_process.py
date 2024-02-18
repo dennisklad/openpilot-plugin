@@ -15,10 +15,10 @@ from openpilot.tools.sim.lib.camerad import W, H
 C3_POSITION = Vec3(0.0, 0, 1.22)
 C3_HPR = Vec3(0, 0,0)
 
-unreal_state = namedtuple("unreal_state", ["velocity", "position", "bearing", "steering_angle"])
+unity_state = namedtuple("unity_state", ["velocity", "position", "bearing", "steering_angle"])
 
 
-def unreal_process(camera_array, wide_camera_array, image_lock, controls_recv: Connection, state_send: Connection, exit_event):
+def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Connection, state_send: Connection, exit_event):
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
 
@@ -38,9 +38,10 @@ def unreal_process(camera_array, wide_camera_array, image_lock, controls_recv: C
 
   steer_ratio = 8
   vc = [0,0]
-  print("FUUUUCK:", exit_event.is_set())
+  print("exit_event.is_set():", exit_event.is_set())
+
   while not exit_event.is_set():
-    # state = unreal_state(
+    # state = unity_state(
     #   velocity=vec3(x=float(env.vehicle.velocity[0]), y=float(env.vehicle.velocity[1]), z=0),
     #   position=env.vehicle.position,
     #   bearing=float(math.degrees(env.vehicle.heading_theta)),
@@ -53,10 +54,10 @@ def unreal_process(camera_array, wide_camera_array, image_lock, controls_recv: C
     #   while controls_recv.poll(0):
     #     steer_angle, gas, should_reset = controls_recv.recv()
 
-    #   steer_unreal = steer_angle * 1 / (env.vehicle.MAX_STEERING * steer_ratio)
-    #   steer_unreal = np.clip(steer_unreal, -1, 1)
+    #   steer_unity = steer_angle * 1 / (env.vehicle.MAX_STEERING * steer_ratio)
+    #   steer_unity = np.clip(steer_unity, -1, 1)
 
-    #   vc = [steer_unreal, gas]
+    #   vc = [steer_unity, gas]
 
     if rk.frame % 5 == 0:
       road_image[...] = get_image()

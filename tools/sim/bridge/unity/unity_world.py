@@ -5,7 +5,7 @@ import numpy as np
 import time
 
 from multiprocessing import Pipe, Array
-from openpilot.tools.sim.bridge.unreal.unreal_process import unreal_process, unreal_state
+from openpilot.tools.sim.bridge.unity.unity_process import unity_process, unity_state
 from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.camerad import W, H
 from openpilot.tools.sim.lib.common import vec3
@@ -13,11 +13,11 @@ from openpilot.tools.sim.lib.common import vec3
 import logging
 log = logging.getLogger('a')
 
-class UnrealWorld(World):
+class UnityWorld(World):
   
   def __init__(self):
     
-    log.debug('Starting init of UnrealWorld')
+    log.debug('Starting init of UnityWorld')
 
     super().__init__(dual_camera=False)
 
@@ -33,8 +33,8 @@ class UnrealWorld(World):
 
     self.exit_event = multiprocessing.Event()
 
-    self.unreal_process = multiprocessing.Process(name="unreal process",
-          target=functools.partial(unreal_process, 
+    self.unity_process = multiprocessing.Process(name="unity process",
+          target=functools.partial(unity_process, 
                 self.camera_array, 
                 self.wide_camera_array, 
                 self.image_lock, 
@@ -42,7 +42,7 @@ class UnrealWorld(World):
                 self.state_send, 
                 self.exit_event))
 
-    self.unreal_process.start()
+    self.unity_process.start()
 
     # wait for a state message to ensure sim is launched
     #log.info('Waiting for the state message to ensure sim is launched')
@@ -53,7 +53,7 @@ class UnrealWorld(World):
     self.reset_time = 0
     self.should_reset = False
 
-    log.debug('UnrealWorld initiated.')
+    log.debug('UnityWorld initiated.')
 
   def apply_controls(self, steer_angle, throttle_out, brake_out):
     if (time.monotonic() - self.reset_time) > 2:
@@ -80,7 +80,7 @@ class UnrealWorld(World):
       # Received state looks like this:
       # metadrive_state(velocity=vec3(x=0.007272727321833372, y=0.0, z=0), position=(5.0, 3.5), bearing=0.0, steering_angle=0)
 
-      # TODO: Replace values in Unreal later
+      # TODO: Replace values in Unity later
       # for now its hardcoded.
 
       # NO MD_STATE!!!
@@ -103,4 +103,4 @@ class UnrealWorld(World):
 
   def close(self):
     self.exit_event.set()
-    self.unreal_process.join()
+    self.unity_process.join()

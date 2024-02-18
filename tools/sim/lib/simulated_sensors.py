@@ -110,7 +110,7 @@ class SimulatedSensors:
         world (World): _description_
     """
 
-    logger.debug('`simulated_sensors.send_camera_images` called. Sending YUV road via camerad from the world.road_image.')
+    # logger.debug('`simulated_sensors.send_camera_images` called. Sending YUV road via camerad from the world.road_image.')
 
     world.image_lock.acquire()
     yuv = self.camerad.rgb_to_yuv(world.road_image)

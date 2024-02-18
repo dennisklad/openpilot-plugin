@@ -4,7 +4,7 @@ import argparse
 from typing import Any
 from multiprocessing import Queue
 
-from openpilot.tools.sim.bridge.unreal.unreal_bridge import UnrealBridge
+from openpilot.tools.sim.bridge.unity.unity_bridge import UnityBridge
 from openpilot.tools.sim.bridge.metadrive.metadrive_bridge import MetaDriveBridge
 
 import logging
@@ -30,9 +30,9 @@ if __name__ == "__main__":
     log.debug('`MetaDriveBridge.run(q)` called. Init Bridge.')
 
   else:
-    simulator_bridge = UnrealBridge(args)
-    log.debug('`UnrealBridge.run(q)` called. Init Bridge.')
-    # <------ 1) Calls the run function of unrealBridge
+    simulator_bridge = UnityBridge(args)
+    log.debug('`UnityBridge.run(q)` called. Init Bridge.')
+    # <------ 1) Calls the run function of unityBridge
 
   p = simulator_bridge.run(q)                 
 
