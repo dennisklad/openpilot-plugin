@@ -67,24 +67,27 @@ class UnityWorld(World):
       self.vc[0] = 0
       self.vc[1] = 0
 
+    # Send the controls to the pipe
     self.controls_send.send([*self.vc, self.should_reset])
     self.should_reset = False
 
   def read_sensors(self, state: SimulatorState):
     
-    # TODO state receiving.
-    # while self.state_recv.poll(0):
+    while self.state_recv.poll(0):
+      # log.info('Reading the state of the sensors ...')
       
-      # log.info('Reading the sensors ...')
-      
+      # TODO: Receive the state
       # Received state looks like this:
-      # metadrive_state(velocity=vec3(x=0.007272727321833372, y=0.0, z=0), position=(5.0, 3.5), bearing=0.0, steering_angle=0)
+      # unity_state(velocity=vec3(x=0.007272727321833372, y=0.0, z=0), position=(5.0, 3.5), bearing=0.0, steering_angle=0)
 
-      # TODO: Replace values in Unity later
-      # for now its hardcoded.
+      temp_state: unity_state = self.state_recv.recv()
+      # state.velocity = temp_state.velocity
+      # state.bearing = temp_state.bearing
+      # state.steering_angle = temp_state.steering_angle
+      # state.gps.from_xy(temp_state.position)
+      # state.valid = True     
 
-      # NO MD_STATE!!!
-      # md_state = self.state_recv.recv()
+      # HARDCODED VALUES
       state.velocity = vec3(x=0.007272727321833372, y=0.0, z=0)
       state.bearing = 0.0
       state.steering_angle = 0

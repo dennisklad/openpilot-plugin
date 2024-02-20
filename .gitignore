@@ -1,3 +1,4 @@
+.mono/
 capnproto-*/
 *.tar.gz
 venv/
