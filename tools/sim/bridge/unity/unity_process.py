@@ -38,34 +38,39 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
         img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
         return np.array(img).reshape((H, W, 3))
 
-
   def step(vc):
     steer, gas = vc
     # Simulate control commands (for demonstration)
     control_commands = f"accelerate={gas}, steer={steer}"
     # Send control commands to Unity
-    # log.info("ZeroMQ: Sending the controls to Unity...")
-    # socket.send_string(control_commands)
-    # print("ZeroMQ: Response from Unity about the controls:", socket.recv_string())
+    log.info("ZeroMQ: Sending the controls to Unity..." + control_commands)
+    
+    # TODO: Implement ASYNC
+    socket.send_string(control_commands)
+    print("ZeroMQ: Response from Unity about the controls:", socket.recv_string())
   
   
   def get_state():
-    # TODO: Current state of the car in Unity!!!
     # TODO: Make it non-blocking (?)
-    # state = unity_state(
-    #   # Get values from the bridge
-    #   velocity = vec3(x=float(vehicle.velocity[0]), y=float(vehicle.velocity[1]), z=0),
-    #   position = vehicle.position,
-    #   bearing  = float(math.degrees(vehicle.heading_theta)),
-    #   steering_angle = vehicle.steering * vehicle.MAX_STEERING
-    # )
-    
     # log.info("ZeroMQ: Receiving state from Unity...")
-    rcv = socket.recv()
-    log.info(rcv)
+    
+    rcv = socket.recv().decode("utf-8") # Cast Byte Object to String
+    
+    # log.info(rcv)
     socket.send(b"Okay")
-    # return rcv
 
+    # b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.0001210415|0.1|11'
+    state = rcv.split("|")
+    
+    # TODO: What is the bearing? Does it need math.degrees?
+    # TODO: Steering values is not right.
+    return unity_state(
+      velocity = vec3(x=eval(state[0])[0], y=eval(state[0])[1], z=eval(state[0])[2]),
+      position = eval(state[1]),
+      bearing  = float(state[2]),
+      steering_angle = float(state[3]) * int(state[-1])
+    ), int(state[-1])
+        
 
   #########################
   #       MAIN CODE       #
@@ -75,7 +80,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   # ZeroMQ Server Definition
   server_address = "tcp://127.0.0.1:5555"
-  socket = zmq.Context().socket(zmq.REP)
+  socket = zmq.Context().socket(zmq.PAIR)
   socket.bind(server_address)
   log.debug(f"ZeroMQ Server startet at {server_address}...")
   
@@ -85,23 +90,23 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   while not exit_event.is_set():
     
-    get_state()
-    # state_send.send(get_state())
+    ustate, MAX_STEERING = get_state()
+    state_send.send(ustate)
     
     if controls_recv.poll(0):
       while controls_recv.poll(0):
         
-          # print("Receiving controls...")
-          # print(controls_recv.recv())
+          # TODO: Values are always 1 and -1...
+          # print("Receiving controls...", controls_recv.recv())
           steer_angle, gas, should_reset = controls_recv.recv()
 
-      # steer_unity = steer_angle * 1 / (MAX_STEERING * steer_ratio)
-      # steer_unity = np.clip(steer_unity, -1, 1)
+      steer_unity = steer_angle * 1 / (MAX_STEERING * steer_ratio)
+      steer_unity = np.clip(steer_unity, -1, 1)
 
-      # vc = [steer_unity, gas]
+      vc = [steer_unity, gas]
 
-    if rk.frame % 5 == 0:
-      step(vc)       # TODO: Call the function
+    if rk.frame % 50 == 0:
+      step(vc)
       road_image[...] = get_image()
       image_lock.release()
 

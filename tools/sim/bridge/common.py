@@ -128,7 +128,7 @@ class SimulatorBridge(ABC):
 
       # Read manual controls
       if not q.empty():
-        message = q.get()
+        message = q.get()        
         m = message.split('_')
         if m[0] == "steer":
           steer_manual = float(m[1])
