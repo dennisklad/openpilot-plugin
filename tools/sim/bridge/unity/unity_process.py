@@ -14,6 +14,7 @@ from openpilot.common.realtime import Ratekeeper
 from openpilot.tools.sim.lib.common import vec3
 from openpilot.tools.sim.lib.camerad import W, H
 
+from threading import Thread
 import logging
 log = logging.getLogger('a')
 
@@ -25,6 +26,7 @@ unity_state = namedtuple("unity_state", ["velocity", "position", "bearing", "ste
 def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Connection, state_send: Connection, exit_event):
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
+  MAX_STEERING = 0
 
   def get_image():
       with mss() as sct:
@@ -39,38 +41,50 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
         return np.array(img).reshape((H, W, 3))
 
   def step(vc):
+    """Executes a step by pushing the controls to the controls_socket.
+    This string is then processed by the unity PULL socket.
+
+    Args:
+        vc (tuple): Both steering and acceleration values as +/-
+    """
     steer, gas = vc
-    # Simulate control commands (for demonstration)
     control_commands = f"accelerate={gas}, steer={steer}"
     # Send control commands to Unity
-    log.info("ZeroMQ: Sending the controls to Unity..." + control_commands)
-    
-    # TODO: Implement ASYNC
-    socket.send_string(control_commands)
-    print("ZeroMQ: Response from Unity about the controls:", socket.recv_string())
+    log.info("Step: ZeroMQ: Sending the controls to Unity..." + control_commands)
+    controls_socket.send_string(control_commands)
   
   
   def get_state():
-    # TODO: Make it non-blocking (?)
-    # log.info("ZeroMQ: Receiving state from Unity...")
+    """Threaded task that pulls from the state socket (pushed from unity).
+    Decodes the unity state and created a unity_state named tuple.
+    This is then send to the state_send pipe to unity_world.
+    """
+    state_socket = zmq.Context().socket(zmq.PULL)
+    state_socket.bind("tcp://127.0.0.1:5557")
     
-    rcv = socket.recv().decode("utf-8") # Cast Byte Object to String
+    nonlocal MAX_STEERING # This value is required in the calculation for steer_unity
     
-    # log.info(rcv)
-    socket.send(b"Okay")
+    while not exit_event.is_set():
+      rcv = state_socket.recv().decode("utf-8") # Cast Byte Object to String
+      
+      log.info("State: ZeroMQ: Receiving state from Unity..." + rcv)
 
-    # b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.0001210415|0.1|11'
-    state = rcv.split("|")
-    
-    # TODO: What is the bearing? Does it need math.degrees?
-    # TODO: Steering values is not right.
-    return unity_state(
-      velocity = vec3(x=eval(state[0])[0], y=eval(state[0])[1], z=eval(state[0])[2]),
-      position = eval(state[1]),
-      bearing  = float(state[2]),
-      steering_angle = float(state[3]) * int(state[-1])
-    ), int(state[-1])
-        
+      # Example: b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.0001210415|0.1|11'
+      # 'vec3-velocity | position | heading_theta or bearing | steer | max steer'   
+      state = rcv.split("|")
+      
+      # TODO: What is the bearing? Does it need math.degrees?
+      # TODO: Steering values is not right.
+      MAX_STEERING = int(state[-1])
+      
+      ustate = unity_state(
+        velocity = vec3(x=eval(state[0])[0], y=eval(state[0])[1], z=eval(state[0])[2]),
+        position = eval(state[1]),
+        bearing  = float(state[2]),
+        steering_angle = float(state[3]) * MAX_STEERING
+      )
+      
+      state_send.send(ustate)
 
   #########################
   #       MAIN CODE       #
@@ -79,19 +93,18 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   rk = Ratekeeper(100, None)
 
   # ZeroMQ Server Definition
-  server_address = "tcp://127.0.0.1:5555"
-  socket = zmq.Context().socket(zmq.PAIR)
-  socket.bind(server_address)
-  log.debug(f"ZeroMQ Server startet at {server_address}...")
+  controls_socket = zmq.Context().socket(zmq.PUSH)
+  controls_socket.bind("tcp://127.0.0.1:5556")
   
+  state_recv_thread = Thread(target=get_state)
+  state_recv_thread.start()
+    
   steer_ratio = 8
   vc = [0,0]
   print("exit_event.is_set():", exit_event.is_set())
 
+  
   while not exit_event.is_set():
-    
-    ustate, MAX_STEERING = get_state()
-    state_send.send(ustate)
     
     if controls_recv.poll(0):
       while controls_recv.poll(0):
@@ -105,7 +118,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
       vc = [steer_unity, gas]
 
-    if rk.frame % 50 == 0:
+    if rk.frame % 5 == 0:
       step(vc)
       road_image[...] = get_image()
       image_lock.release()
