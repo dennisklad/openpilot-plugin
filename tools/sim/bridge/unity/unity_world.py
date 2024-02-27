@@ -23,7 +23,6 @@ class UnityWorld(World):
 
     self.camera_array = Array(ctypes.c_uint8, W*H*3)
   
-    # TODO ADD SCREENSHOT HERE!
     self.road_image = np.frombuffer(self.camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
 
     self.wide_camera_array = None
@@ -45,8 +44,8 @@ class UnityWorld(World):
     self.unity_process.start()
 
     # wait for a state message to ensure sim is launched
-    #log.info('Waiting for the state message to ensure sim is launched')
-    #self.state_recv.recv() 
+    log.info('Waiting for the state message to ensure sim is launched')
+    self.state_recv.recv() 
 
     self.steer_ratio = 15
     self.vc = [0.0,0.0]
@@ -74,25 +73,20 @@ class UnityWorld(World):
   def read_sensors(self, state: SimulatorState):
     
     while self.state_recv.poll(0):
-      # log.info('Reading the state of the sensors ...')
-      
-      # TODO: Receive the state
-      # Received state looks like this:
-      # unity_state(velocity=vec3(x=0.007272727321833372, y=0.0, z=0), position=(5.0, 3.5), bearing=0.0, steering_angle=0)
-
+      # log.info('Reading the state of the sensors ...' + str(self.state_recv.recv()))
       temp_state: unity_state = self.state_recv.recv()
-      # state.velocity = temp_state.velocity
-      # state.bearing = temp_state.bearing
-      # state.steering_angle = temp_state.steering_angle
-      # state.gps.from_xy(temp_state.position)
-      # state.valid = True     
+      state.velocity = temp_state.velocity
+      state.bearing = temp_state.bearing
+      state.steering_angle = temp_state.steering_angle
+      state.gps.from_xy(temp_state.position)
+      state.valid = True
 
       # HARDCODED VALUES
-      state.velocity = vec3(x=0.007272727321833372, y=0.0, z=0)
-      state.bearing = 0.0
-      state.steering_angle = 0
-      state.gps.from_xy((5.0, 3.5))
-      state.valid = True
+      # state.velocity = vec3(x=0.007272727321833372, y=0.0, z=0)
+      # state.bearing = 0.0
+      # state.steering_angle = 0
+      # state.gps.from_xy((5.0, 3.5))
+      # state.valid = True
 
   def read_cameras(self):
     pass
@@ -106,4 +100,6 @@ class UnityWorld(World):
 
   def close(self):
     self.exit_event.set()
+    
+    # TODO: Close correctly
     self.unity_process.join()

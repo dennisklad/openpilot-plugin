@@ -31,12 +31,16 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   def get_image():
       with mss() as sct:
         # log.info('Reading the cameras ...')
-        # Get raw pixels from the screen
-        # Main monitor is the second one detected. TODO: Add this as argument?
+        # Problem: MSS only captures monitor and not windows!
+        
+        # Main monitor is the second one detected.
+        # TODO: Add this as argument?
         main_monitor = sct.monitors[1]
+        
+        # Get raw pixels from the screen
         monitor = {"top": main_monitor['top']+100, "left": main_monitor['left']+100, "width": W, "height": H}
+        
         sct_img = sct.grab(monitor)
-        # TODO: Maybe better as Numpy array instead of PIL
         img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
         return np.array(img).reshape((H, W, 3))
 
@@ -53,13 +57,13 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     log.info("Step: ZeroMQ: Sending the controls to Unity..." + control_commands)
     controls_socket.send_string(control_commands)
   
-  
   def get_state():
     """Threaded task that pulls from the state socket (pushed from unity).
     Decodes the unity state and created a unity_state named tuple.
     This is then send to the state_send pipe to unity_world.
     """
     state_socket = zmq.Context().socket(zmq.PULL)
+    state_socket.setsockopt(zmq.CONFLATE, 1)
     state_socket.bind("tcp://127.0.0.1:5557")
     
     nonlocal MAX_STEERING # This value is required in the calculation for steer_unity
@@ -86,6 +90,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
       
       state_send.send(ustate)
 
+
   #########################
   #       MAIN CODE       #
   #########################
@@ -94,6 +99,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   # ZeroMQ Server Definition
   controls_socket = zmq.Context().socket(zmq.PUSH)
+  controls_socket.setsockopt(zmq.CONFLATE, 1)
   controls_socket.bind("tcp://127.0.0.1:5556")
   
   state_recv_thread = Thread(target=get_state)
@@ -109,7 +115,6 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     if controls_recv.poll(0):
       while controls_recv.poll(0):
         
-          # TODO: Values are always 1 and -1...
           # print("Receiving controls...", controls_recv.recv())
           steer_angle, gas, should_reset = controls_recv.recv()
 

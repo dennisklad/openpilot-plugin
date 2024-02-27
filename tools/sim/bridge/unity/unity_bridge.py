@@ -22,11 +22,7 @@ class UnityBridge(SimulatorBridge):
         World: 
     """
 
-    # TODO
-    # What comes here?
-    # What is the output
-    # Start with a still road image?
-
+    # TODO: Does this function need more?
     log.debug("`UnityBridge.spawn_world` called. Generating empty UnityWorld.")
 
     return UnityWorld()
