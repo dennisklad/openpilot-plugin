@@ -15,8 +15,6 @@ from openpilot.tools.sim.lib.common import vec3
 from openpilot.tools.sim.lib.camerad import W, H
 
 from threading import Thread
-import logging
-log = logging.getLogger('a')
 
 C3_POSITION = Vec3(0.0, 0, 1.22)
 C3_HPR = Vec3(0, 0,0)
@@ -27,14 +25,13 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
   MAX_STEERING = 0
+  rcv = ""
 
   def get_image():
       with mss() as sct:
-        # log.info('Reading the cameras ...')
         # Problem: MSS only captures monitor and not windows!
-        
-        # Main monitor is the second one detected.
-        # TODO: Add this as argument?
+        # PyGetWindow and win32gui currently does not support Linux. (?)
+        # TODO: Main monitor is the second one detected. Add this and the size as argument.
         main_monitor = sct.monitors[1]
         
         # Get raw pixels from the screen
@@ -54,7 +51,9 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     steer, gas = vc
     control_commands = f"accelerate={gas}, steer={steer}"
     # Send control commands to Unity
-    log.info("Step: ZeroMQ: Sending the controls to Unity..." + control_commands)
+    # print(f"Sending the controls to Unity... accelerate={gas:<5.3f}, steer={steer:3f}")
+    print(f"Ctl to Unity: accelerate={gas:<6.3f}, steer={steer:<6.3f} | State to OP: {rcv}")
+    
     controls_socket.send_string(control_commands)
   
   def get_state():
@@ -67,17 +66,17 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     state_socket.bind("tcp://127.0.0.1:5557")
     
     nonlocal MAX_STEERING # This value is required in the calculation for steer_unity
+    nonlocal rcv 
     
     while not exit_event.is_set():
       rcv = state_socket.recv().decode("utf-8") # Cast Byte Object to String
       
-      log.info("State: ZeroMQ: Receiving state from Unity..." + rcv)
+      # print(f"Receiving state from Unity...    " + rcv)
 
       # Example: b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.0001210415|0.1|11'
       # 'vec3-velocity | position | heading_theta or bearing | steer | max steer'   
       state = rcv.split("|")
       
-      # TODO: What is the bearing? Does it need math.degrees?
       # TODO: Steering values is not right.
       MAX_STEERING = int(state[-1])
       
@@ -99,7 +98,9 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   # ZeroMQ Server Definition
   controls_socket = zmq.Context().socket(zmq.PUSH)
-  controls_socket.setsockopt(zmq.CONFLATE, 1)
+  
+  # TODO: Is this necessary? Does it work better without?
+  # controls_socket.setsockopt(zmq.CONFLATE, 1)
   controls_socket.bind("tcp://127.0.0.1:5556")
   
   state_recv_thread = Thread(target=get_state)

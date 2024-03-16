@@ -81,13 +81,6 @@ class UnityWorld(World):
       state.gps.from_xy(temp_state.position)
       state.valid = True
 
-      # HARDCODED VALUES
-      # state.velocity = vec3(x=0.007272727321833372, y=0.0, z=0)
-      # state.bearing = 0.0
-      # state.steering_angle = 0
-      # state.gps.from_xy((5.0, 3.5))
-      # state.valid = True
-
   def read_cameras(self):
     pass
 
