@@ -110,6 +110,7 @@ websocket_client = "*"
 markdown-it-py = "*"
 timezonefinder = "*"
 setproctitle = "*"
+mss = "^9.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
