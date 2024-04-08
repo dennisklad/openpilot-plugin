@@ -77,7 +77,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
       # 'vec3-velocity | position | heading_theta or bearing | steer | max steer'   
       state = rcv.split("|")
       
-      # TODO: Steering values is not right.
+      # Check this value again.
       MAX_STEERING = int(state[-1])
       
       ustate = unity_state(

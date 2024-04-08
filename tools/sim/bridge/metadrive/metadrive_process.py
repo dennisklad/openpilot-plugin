@@ -118,6 +118,8 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
 #     Max Steering: {env.vehicle.MAX_STEERING}
 # """)
 
+    print(f"Steering: {env.vehicle.steering}")
+    
     state_send.send(state)
 
     if controls_recv.poll(0):
