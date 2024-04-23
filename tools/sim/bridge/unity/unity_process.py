@@ -5,6 +5,7 @@ from PIL import Image
 import time
 import zmq
 import io
+import cv2
 
 from collections import namedtuple
 from panda3d.core import Vec3
@@ -28,25 +29,17 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   MAX_STEERING = 0
   rcv = ""
 
-  def get_image_with_mss():
-    """This was a prototype. It is better if we get the frame immediately from Unity!"""  
-    with mss() as sct:
-      # Problem: MSS only captures monitor and not windows!
-      # PyGetWindow and win32gui currently does not support Linux. (?)
-      # TODO: Main monitor is the second one detected. Add this and the size as argument.
-      main_monitor = sct.monitors[1]
-      # Get raw pixels from the screen
-      monitor = {"top": main_monitor['top']+100, "left": main_monitor['left']+100, "width": W, "height": H}
-      sct_img = sct.grab(monitor)
-      img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
-      return np.array(img).reshape((H, W, 3))
-
   def get_image():
+    """Pulls the dashcam image from the socket. 
+    The image is converted from bytes into an array with OpenCV.
 
-    ss = screen_socket.recv()
-    image = Image.open(io.BytesIO(ss)).convert('RGB')
-         
-    return image
+    Returns:
+        image
+    """
+    image_bytes = screen_socket.recv()
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
   
   def step(vc):
     """Executes a step by pushing the controls to the controls_socket.
