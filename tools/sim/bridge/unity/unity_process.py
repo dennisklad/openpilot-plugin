@@ -27,7 +27,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
   MAX_STEERING = 0
-  rcv = ""
+  print_rcv = ""
 
   def get_image():
     """Pulls the dashcam image from the socket. 
@@ -52,9 +52,30 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     control_commands = f"accelerate={gas}, steer={steer}"
     # Send control commands to Unity
     # print(f"Sending the controls to Unity... accelerate={gas:<5.3f}, steer={steer:3f}")
-    print(f"Ctl to Unity: accelerate={gas:<6.3f}, steer={steer:<6.3f} | State to OP: {rcv}")
+    print(f"Ctl to Unity: acc={gas:<6.3f}, str={steer:<6.3f} | State to OP: {print_rcv}")
     
     controls_socket.send_string(control_commands)
+  
+  def format_rcv_string(rcv):
+    """This helper function generated a new string to display the unity state that is received by OP.
+    This string has 1 floating point and consistent spacing.
+    
+    Args:
+      rcv (string): The decoded string received from Unity
+      
+    Returns:
+      string: The formatted string to be displayed
+
+    """  
+    l = []
+    for e in rcv.split('|'):
+      if '(' in e: # If tuple
+        numbers = e.strip('()').split(',')
+        new_tuple = '(' + ', '.join(f'{float(num):>4.0f}' for num in numbers) + ')'
+        l.append(new_tuple)
+      else: # If number
+        l.append(f'{float(e):>6.1f}')
+    return ' '.join(l)
   
   def get_state():
     """Threaded task that pulls from the state socket (pushed from unity).
@@ -66,16 +87,18 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     state_socket.bind("tcp://127.0.0.1:5557")
     
     nonlocal MAX_STEERING # This value is required in the calculation for steer_unity
-    nonlocal rcv 
+    nonlocal print_rcv  # This string is used to print to console in step
     
     while not exit_event.is_set():
       rcv = state_socket.recv().decode("utf-8") # Cast Byte Object to String
+      
+      print_rcv = format_rcv_string(rcv)
       
       # print(f"Receiving state from Unity...    " + rcv)
 
       # Example: b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.0001210415|0.1|11'
       # 'vec3-velocity | position | heading_theta or bearing | steer | max steer'   
-      state = rcv.split("|")
+      state = rcv.split('|')
       
       # Check this value again.
       MAX_STEERING = int(state[-1])
