@@ -105,13 +105,12 @@ sounddevice = "*"
 spidev = { version = "*", platform = "linux" }
 sympy = "*"
 websocket_client = "*"
+vgamepad = "==0.1.0"
 
 # these should be removed
 markdown-it-py = "*"
 timezonefinder = "*"
 setproctitle = "*"
-mss = "^9.0.1"
-
 
 [tool.poetry.group.dev.dependencies]
 av = "*"

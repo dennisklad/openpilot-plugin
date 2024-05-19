@@ -1,11 +1,8 @@
-import math
 import numpy as np
-from mss import mss
-from PIL import Image
 import time
 import zmq
-import io
 import cv2
+import vgamepad as vg
 
 from collections import namedtuple
 from panda3d.core import Vec3
@@ -28,6 +25,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
   MAX_STEERING = 0
   print_rcv = ""
+
 
   def get_image():
     """Pulls the dashcam image from the socket. 
@@ -52,10 +50,28 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     control_commands = f"accelerate={gas}, steer={steer}"
     # Send control commands to Unity
     # print(f"Sending the controls to Unity... accelerate={gas:<5.3f}, steer={steer:3f}")
-    print(f"Ctl to Unity: acc={gas:<6.3f}, str={steer:<6.3f} | State to OP: {print_rcv}")
+    print(f"Ctl to Unity: acc={gas:>6.3f}, str={steer:>6.3f} | State to OP: {print_rcv}")
     
-    controls_socket.send_string(control_commands)
-  
+    # TODO: INSTEAD OF SENDING THE CONTROLS WE NEED TO CONTROL THE JOYSTICK HERE:
+    control_gamepad(gas, steer)
+    
+    # controls_socket.send_string(control_commands)
+
+
+  def control_gamepad(gas:float, steer:float):
+    """This function changes the left-stick and presses buttons on the virtual gamepad.
+
+    Args:
+        gas   (float): Value to accelerate or brake [-1, 1]
+        steer (float): Value to steer left or right [-1, 1]
+    """
+    gamepad.left_joystick_float(-steer, 0)
+    # TODO: GAS IS not the L-STICK (probably the R2 button!
+    # gamepad.right_trigger_float(gas)
+    gamepad.update()
+    time.sleep(.1)
+
+
   def format_rcv_string(rcv):
     """This helper function generated a new string to display the unity state that is received by OP.
     This string has 1 floating point and consistent spacing.
@@ -65,7 +81,6 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
       
     Returns:
       string: The formatted string to be displayed
-
     """  
     l = []
     for e in rcv.split('|'):
@@ -76,6 +91,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
       else: # If number
         l.append(f'{float(e):>6.1f}')
     return ' '.join(l)
+  
   
   def get_state():
     """Threaded task that pulls from the state socket (pushed from unity).
@@ -126,13 +142,16 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   # controls_socket.setsockopt(zmq.CONFLATE, 1)
   controls_socket.bind("tcp://127.0.0.1:5556")
   
+  # Define the virtual gamepad to control unity
+  gamepad = vg.VX360Gamepad()
+
   screen_socket = zmq.Context().socket(zmq.PULL)
   screen_socket.setsockopt(zmq.CONFLATE, 1)
   screen_socket.bind("tcp://127.0.0.1:5558")
   
   state_recv_thread = Thread(target=get_state)
   state_recv_thread.start()
-    
+  
   steer_ratio = 8
   vc = [0,0]
   print("exit_event.is_set():", exit_event.is_set())
