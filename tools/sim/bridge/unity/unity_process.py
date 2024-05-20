@@ -24,7 +24,9 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
   MAX_STEERING = 0
+  is_engaged = False
   print_rcv = ""
+  steer_angle = 0
 
 
   def get_image():
@@ -44,18 +46,14 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     This string is then processed by the unity PULL socket.
 
     Args:
-        vc (tuple): Both steering and acceleration values as +/-
+        vc (tuple): Both steering and acceleration values as [-1; 1]
     """
     steer, gas = vc
-    control_commands = f"accelerate={gas}, steer={steer}"
-    # Send control commands to Unity
-    # print(f"Sending the controls to Unity... accelerate={gas:<5.3f}, steer={steer:3f}")
+    
     print(f"Ctl to Unity: acc={gas:>6.3f}, str={steer:>6.3f} | State to OP: {print_rcv}")
-    
-    # TODO: INSTEAD OF SENDING THE CONTROLS WE NEED TO CONTROL THE JOYSTICK HERE:
-    control_gamepad(gas, steer)
-    
-    # controls_socket.send_string(control_commands)
+
+    if is_engaged:
+      control_gamepad(gas, steer)
 
 
   def control_gamepad(gas:float, steer:float):
@@ -65,9 +63,7 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
         gas   (float): Value to accelerate or brake [-1, 1]
         steer (float): Value to steer left or right [-1, 1]
     """
-    gamepad.left_joystick_float(-steer, 0)
-    # TODO: GAS IS not the L-STICK (probably the R2 button!
-    # gamepad.right_trigger_float(gas)
+    gamepad.left_joystick_float(-steer, -gas)
     gamepad.update()
     time.sleep(.1)
 
@@ -103,27 +99,26 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     state_socket.bind("tcp://127.0.0.1:5557")
     
     nonlocal MAX_STEERING # This value is required in the calculation for steer_unity
-    nonlocal print_rcv  # This string is used to print to console in step
+    nonlocal print_rcv    # This string is used to print to console in step
+    nonlocal is_engaged   # This bool is used to determine when the virtual controller should be active
+    nonlocal steer_angle  # This value is received from the internal controls pipe
     
     while not exit_event.is_set():
       rcv = state_socket.recv().decode("utf-8") # Cast Byte Object to String
-      
       print_rcv = format_rcv_string(rcv)
       
-      # print(f"Receiving state from Unity...    " + rcv)
-
-      # Example: b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.0001210415|0.1|11'
-      # 'vec3-velocity | position | heading_theta or bearing | steer | max steer'   
+      # Example: b'(0.00, 0.00, 0.00)|(181.935, -333.5345)|0.1|11|0'
+      # 'vec3-velocity | position | heading_theta or bearing | max steer | is_engaged'   
       state = rcv.split('|')
-      
-      # Check this value again.
-      MAX_STEERING = int(state[-1])
+
+      MAX_STEERING = int(state[-2])
+      is_engaged = bool(state[-1] == '1')
       
       ustate = unity_state(
         velocity = vec3(x=eval(state[0])[0], y=eval(state[0])[1], z=eval(state[0])[2]),
         position = eval(state[1]),
         bearing  = float(state[2]),
-        steering_angle = float(state[3]) * MAX_STEERING
+        steering_angle = steer_angle * MAX_STEERING,
       )
       
       state_send.send(ustate)
@@ -135,16 +130,10 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   
   rk = Ratekeeper(100, None)
 
-  # ZeroMQ Server Definition
-  controls_socket = zmq.Context().socket(zmq.PUSH)
-  
-  # TODO: Is this necessary? Does it work better without?
-  # controls_socket.setsockopt(zmq.CONFLATE, 1)
-  controls_socket.bind("tcp://127.0.0.1:5556")
-  
   # Define the virtual gamepad to control unity
   gamepad = vg.VX360Gamepad()
 
+  # ZeroMQ Server Definition
   screen_socket = zmq.Context().socket(zmq.PULL)
   screen_socket.setsockopt(zmq.CONFLATE, 1)
   screen_socket.bind("tcp://127.0.0.1:5558")
@@ -154,20 +143,20 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
   
   steer_ratio = 8
   vc = [0,0]
-  print("exit_event.is_set():", exit_event.is_set())
-
-  
+    
   while not exit_event.is_set():
     
     if controls_recv.poll(0):
       while controls_recv.poll(0):
+        steer_angle, gas, _ = controls_recv.recv()
+
+      try:
+        steer_unity = steer_angle * 1 / (MAX_STEERING * steer_ratio)
+        steer_unity = np.clip(steer_unity, -1, 1)
+      except Exception as e:
+        print(e)
+        steer_unity = 0
         
-          # print("Receiving controls...", controls_recv.recv())
-          steer_angle, gas, should_reset = controls_recv.recv()
-
-      steer_unity = steer_angle * 1 / (MAX_STEERING * steer_ratio)
-      steer_unity = np.clip(steer_unity, -1, 1)
-
       vc = [steer_unity, gas]
 
     if rk.frame % 5 == 0:

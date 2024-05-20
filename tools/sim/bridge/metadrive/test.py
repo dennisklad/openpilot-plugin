@@ -18,10 +18,31 @@ def move_left_stick(x_pos, y_pos):
     gamepad.update()
     time.sleep(2)
     
-
 gamepad = vg.VDS4Gamepad()
-while True:
 
+
+while 1:
+    inp = input('wasd')
+    
+    if inp == 'w':
+        gamepad.left_joystick_float(0, -1)
+        gamepad.update()
+        
+    if inp == 's':
+        gamepad.left_joystick_float(0, 1)
+        gamepad.update()
+        
+    if inp == 'a':
+        gamepad.left_joystick_float(-1, 0)
+        gamepad.update()
+        
+    if inp == 'd':
+        gamepad.left_joystick_float(1, 0)
+        gamepad.update()
+
+
+while True:
+    
     x_value = randrange(-10, 10) / 10
     y_value = randrange(-10, 10) / 10
     print(f"left-stick {x_value}; {y_value}")
