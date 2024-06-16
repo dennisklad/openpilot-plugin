@@ -2,9 +2,10 @@ import signal
 import threading
 import functools
 
-from multiprocessing import Process, Queue
+from collections import namedtuple
+from enum import Enum
+from multiprocessing import Process, Queue, Value
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from openpilot.common.params import Params
 from openpilot.common.numpy_fast import clip
@@ -14,10 +15,20 @@ from openpilot.selfdrive.car.honda.values import CruiseButtons
 from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.simulated_car import SimulatedCar
 from openpilot.tools.sim.lib.simulated_sensors import SimulatedSensors
-from openpilot.tools.sim.lib.keyboard_ctrl import KEYBOARD_HELP
 
 import logging
 log = logging.getLogger('a')
+
+QueueMessage = namedtuple("QueueMessage", ["type", "info"], defaults=[None])
+
+class QueueMessageType(Enum):
+  START_STATUS = 0
+  CONTROL_COMMAND = 1
+  TERMINATION_INFO = 2
+  CLOSE_STATUS = 3
+
+def control_cmd_gen(cmd: str):
+  return QueueMessage(QueueMessageType.CONTROL_COMMAND, cmd)
 
 def rk_loop(function, hz, exit_event: threading.Event):
   rk = Ratekeeper(hz, None)
@@ -28,26 +39,30 @@ def rk_loop(function, hz, exit_event: threading.Event):
 class SimulatorBridge(ABC):
   TICKS_PER_FRAME = 5
 
-  def __init__(self, arguments):
+  def __init__(self, dual_camera, high_quality):
     set_params_enabled()
     self.params = Params()
+    self.params.put_bool("ExperimentalLongitudinalEnabled", True)
 
     self.rk = Ratekeeper(100, None)
 
-    self.dual_camera = arguments.dual_camera
-    self.high_quality = arguments.high_quality
+    self.dual_camera = dual_camera
+    self.high_quality = high_quality
 
     self._exit_event = threading.Event()
     self._threads = []
     self._keep_alive = True
-    self.started = False
+    self.started = Value('i', False)
     signal.signal(signal.SIGTERM, self._on_shutdown)
     self._exit = threading.Event()
     self.simulator_state = SimulatorState()
 
-    self.world: Optional[World] = None
+    self.world: World | None = None
 
     self.past_startup_engaged = False
+    self.startup_button_prev = True
+
+    self.test_run = False
 
   def _on_shutdown(self, signal, frame):
     self.shutdown()
@@ -61,14 +76,14 @@ class SimulatorBridge(ABC):
     try:
       self._run(q)
     finally:
-      self.close()
+      self.close("bridge terminated")
 
-  def close(self):
-    self.started = False
+  def close(self, reason):
+    self.started.value = False
     self._exit_event.set()
 
     if self.world is not None:
-      self.world.close()
+      self.world.close(reason)
 
   def run(self, queue, retries=-1):                                
     # <----- 3) Start bridge_keep_alive Process
@@ -76,10 +91,16 @@ class SimulatorBridge(ABC):
     bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))  
     bridge_p.start()
     return bridge_p
-  
+
+  def print_status(self):
+    print(
+    f"""
+State:
+Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_engaged}
+    """)
+
   @abstractmethod
-  def spawn_world(self) -> World:                                 
-    # Overwritten in metadrive_bridge.py
+  def spawn_world(self, q: Queue) -> World:
     pass
 
   def log_sm(self):
@@ -93,8 +114,8 @@ class SimulatorBridge(ABC):
     log.debug('`_run(q)` helper function called.')
     # <----- 5) Spawn World, Car, Sensors and run the simulation
     
-    self.world = self.spawn_world()
     log.info('`spawn_world` completed.')
+    self.world = self.spawn_world(q)
 
     self.simulated_car = SimulatedCar()
     log.info('Spawning the SimulatedCar.')
@@ -127,34 +148,35 @@ class SimulatorBridge(ABC):
 
       # Read manual controls
       if not q.empty():
-        message = q.get()        
-        m = message.split('_')
-        if m[0] == "steer":
-          steer_manual = float(m[1])
-        elif m[0] == "throttle":
-          throttle_manual = float(m[1])
-        elif m[0] == "brake":
-          brake_manual = float(m[1])
-        elif m[0] == "cruise":
-          if m[1] == "down":
-            self.simulator_state.cruise_button = CruiseButtons.DECEL_SET
-          elif m[1] == "up":
-            self.simulator_state.cruise_button = CruiseButtons.RES_ACCEL
-          elif m[1] == "cancel":
-            self.simulator_state.cruise_button = CruiseButtons.CANCEL
-          elif m[1] == "main":
-            self.simulator_state.cruise_button = CruiseButtons.MAIN
-        elif m[0] == "blinker":
-          if m[1] == "left":
-            self.simulator_state.left_blinker = True
-          elif m[1] == "right":
-            self.simulator_state.right_blinker = True
-        elif m[0] == "ignition":
-          self.simulator_state.ignition = not self.simulator_state.ignition
-        elif m[0] == "reset":
-          self.world.reset()
-        elif m[0] == "quit":
-          break
+        message = q.get()
+        if message.type == QueueMessageType.CONTROL_COMMAND:
+          m = message.info.split('_')
+          if m[0] == "steer":
+            steer_manual = float(m[1])
+          elif m[0] == "throttle":
+            throttle_manual = float(m[1])
+          elif m[0] == "brake":
+            brake_manual = float(m[1])
+          elif m[0] == "cruise":
+            if m[1] == "down":
+              self.simulator_state.cruise_button = CruiseButtons.DECEL_SET
+            elif m[1] == "up":
+              self.simulator_state.cruise_button = CruiseButtons.RES_ACCEL
+            elif m[1] == "cancel":
+              self.simulator_state.cruise_button = CruiseButtons.CANCEL
+            elif m[1] == "main":
+              self.simulator_state.cruise_button = CruiseButtons.MAIN
+          elif m[0] == "blinker":
+            if m[1] == "left":
+              self.simulator_state.left_blinker = True
+            elif m[1] == "right":
+              self.simulator_state.right_blinker = True
+          elif m[0] == "ignition":
+            self.simulator_state.ignition = not self.simulator_state.ignition
+          elif m[0] == "reset":
+            self.world.reset()
+          elif m[0] == "quit":
+            break
 
       self.simulator_state.user_brake = brake_manual
       self.simulator_state.user_gas = throttle_manual
@@ -178,24 +200,30 @@ class SimulatorBridge(ABC):
 
         self.past_startup_engaged = True
       elif not self.past_startup_engaged and controlsState.engageable:
-        self.simulator_state.cruise_button = CruiseButtons.DECEL_SET # force engagement on startup
+        self.simulator_state.cruise_button = CruiseButtons.DECEL_SET if self.startup_button_prev else CruiseButtons.MAIN # force engagement on startup
+        self.startup_button_prev = not self.startup_button_prev
 
       throttle_out = throttle_op if self.simulator_state.is_engaged else throttle_manual
       brake_out = brake_op if self.simulator_state.is_engaged else brake_manual
       steer_out = steer_op if self.simulator_state.is_engaged else steer_manual
 
       self.world.apply_controls(steer_out, throttle_out, brake_out)
+      self.world.read_state()
       self.world.read_sensors(self.simulator_state)
+
+      if self.world.exit_event.is_set():
+        self.shutdown()
 
       if self.rk.frame % self.TICKS_PER_FRAME == 0:
         self.world.tick()
         self.world.read_cameras()
 
-      if self.rk.frame % 25 == 0:
-        # print(f"\nKeyboard Commands:\n\n{KEYBOARD_HELP}\n\nState:\nIgnition: {self.simulator_state.ignition} | Engaged: {self.simulator_state.is_engaged}")
-        pass
 
-      self.started = True
+      # don't print during test, so no print/IO Block between OP and metadrive processes
+      if not self.test_run and self.rk.frame % 25 == 0:
+        self.print_status()
+
+      self.started.value = True
 
       self.rk.keep_time()
 

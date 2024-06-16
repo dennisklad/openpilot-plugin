@@ -116,7 +116,7 @@ int handle_encoder_msg(LoggerdState *s, Message *msg, std::string &name, struct 
           assert(encoder_info.filename != NULL);
           re.writer.reset(new VideoWriter(s->logger.segmentPath().c_str(),
             encoder_info.filename, idx.getType() != cereal::EncodeIndex::Type::FULL_H_E_V_C,
-            encoder_info.frame_width, encoder_info.frame_height, encoder_info.fps, idx.getType()));
+            edata.getWidth(), edata.getHeight(), encoder_info.fps, idx.getType()));
           // write the header
           auto header = edata.getHeader();
           re.writer->write((uint8_t *)header.begin(), header.size(), idx.getTimestampEof()/1000, true, false);
@@ -215,7 +215,7 @@ void loggerd_thread() {
     const bool encoder = util::ends_with(it.name, "EncodeData");
     const bool livestream_encoder = util::starts_with(it.name, "livestream");
     if (!it.should_log && (!encoder || livestream_encoder)) continue;
-    LOGD("logging %s (on port %d)", it.name.c_str(), it.port);
+    LOGD("logging %s", it.name.c_str());
 
     SubSocket * sock = SubSocket::create(ctx.get(), it.name);
     assert(sock != NULL);

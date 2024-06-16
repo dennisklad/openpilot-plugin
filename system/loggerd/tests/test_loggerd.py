@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
 import numpy as np
 import os
+import re
 import random
 import string
 import subprocess
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
+from flaky import flaky
 
 import cereal.messaging as messaging
 from cereal import log
@@ -18,11 +18,12 @@ from openpilot.common.timeout import Timeout
 from openpilot.system.hardware.hw import Paths
 from openpilot.system.loggerd.xattr_cache import getxattr
 from openpilot.system.loggerd.deleter import PRESERVE_ATTR_NAME, PRESERVE_ATTR_VALUE
-from openpilot.selfdrive.manager.process_config import managed_processes
+from openpilot.system.manager.process_config import managed_processes
 from openpilot.system.version import get_version
+from openpilot.tools.lib.helpers import RE
 from openpilot.tools.lib.logreader import LogReader
-from cereal.visionipc import VisionIpcServer, VisionStreamType
-from openpilot.common.transformations.camera import tici_f_frame_size, tici_d_frame_size, tici_e_frame_size
+from msgq.visionipc import VisionIpcServer, VisionStreamType
+from openpilot.common.transformations.camera import DEVICE_CAMERAS
 
 SentinelType = log.Sentinel.SentinelType
 
@@ -73,7 +74,7 @@ class TestLoggerd:
     end_type = SentinelType.endOfRoute if route else SentinelType.endOfSegment
     assert msgs[-1].sentinel.type == end_type
 
-  def _publish_random_messages(self, services: List[str]) -> Dict[str, list]:
+  def _publish_random_messages(self, services: list[str]) -> dict[str, list]:
     pm = messaging.PubMaster(services)
 
     managed_processes["loggerd"].start()
@@ -104,11 +105,11 @@ class TestLoggerd:
       # param, initData field, value
       ("DongleId", "dongleId", dongle),
       ("GitCommit", "gitCommit", "commit"),
+      ("GitCommitDate", "gitCommitDate", "date"),
       ("GitBranch", "gitBranch", "branch"),
       ("GitRemote", "gitRemote", "remote"),
     ]
     params = Params()
-    params.clear_all()
     for k, _, v in fake_params:
       params.put(k, v)
     params.put("AccessToken", "abc")
@@ -128,23 +129,23 @@ class TestLoggerd:
 
     # check params
     logged_params = {entry.key: entry.value for entry in initData.params.entries}
-    expected_params = {k for k, _, __ in fake_params} | {'AccessToken'}
+    expected_params = {k for k, _, __ in fake_params} | {'AccessToken', 'BootCount'}
     assert set(logged_params.keys()) == expected_params, set(logged_params.keys()) ^ expected_params
     assert logged_params['AccessToken'] == b'', f"DONT_LOG param value was logged: {repr(logged_params['AccessToken'])}"
     for param_key, initData_key, v in fake_params:
       assert getattr(initData, initData_key) == v
       assert logged_params[param_key].decode() == v
 
-    params.put("AccessToken", "")
-
+  @flaky(max_runs=3)
   def test_rotation(self):
     os.environ["LOGGERD_TEST"] = "1"
     Params().put("RecordFront", "1")
 
+    d = DEVICE_CAMERAS[("tici", "ar0231")]
     expected_files = {"rlog", "qlog", "qcamera.ts", "fcamera.hevc", "dcamera.hevc", "ecamera.hevc"}
-    streams = [(VisionStreamType.VISION_STREAM_ROAD, (*tici_f_frame_size, 2048*2346, 2048, 2048*1216), "roadCameraState"),
-               (VisionStreamType.VISION_STREAM_DRIVER, (*tici_d_frame_size, 2048*2346, 2048, 2048*1216), "driverCameraState"),
-               (VisionStreamType.VISION_STREAM_WIDE_ROAD, (*tici_e_frame_size, 2048*2346, 2048, 2048*1216), "wideRoadCameraState")]
+    streams = [(VisionStreamType.VISION_STREAM_ROAD, (d.fcam.width, d.fcam.height, 2048*2346, 2048, 2048*1216), "roadCameraState"),
+               (VisionStreamType.VISION_STREAM_DRIVER, (d.dcam.width, d.dcam.height, 2048*2346, 2048, 2048*1216), "driverCameraState"),
+               (VisionStreamType.VISION_STREAM_WIDE_ROAD, (d.ecam.width, d.ecam.height, 2048*2346, 2048, 2048*1216), "wideRoadCameraState")]
 
     pm = messaging.PubMaster(["roadCameraState", "driverCameraState", "wideRoadCameraState"])
     vipc_server = VisionIpcServer("camerad")
@@ -213,6 +214,12 @@ class TestLoggerd:
           expected_val = f.read()
         bootlog_val = [e.value for e in boot.pstore.entries if e.key == fn][0]
         assert expected_val == bootlog_val
+
+    # next one should increment by one
+    bl1 = re.match(RE.LOG_ID_V2, bootlog_path.name)
+    bl2 = re.match(RE.LOG_ID_V2, self._gen_bootlog().name)
+    assert bl1.group('uid') != bl2.group('uid')
+    assert int(bl1.group('count')) == 0 and int(bl2.group('count')) == 1
 
   def test_qlog(self):
     qlog_services = [s for s in CEREAL_SERVICES if SERVICE_LIST[s].decimation is not None]
