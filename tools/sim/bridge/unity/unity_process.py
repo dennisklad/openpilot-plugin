@@ -1,5 +1,4 @@
 import numpy as np
-import time
 import zmq
 import cv2
 import vgamepad as vg
@@ -7,7 +6,6 @@ import vgamepad as vg
 from collections import namedtuple
 from panda3d.core import Vec3
 from multiprocessing.connection import Connection
-
 from openpilot.common.realtime import Ratekeeper
 
 from openpilot.tools.sim.lib.common import vec3
@@ -20,7 +18,7 @@ C3_HPR = Vec3(0, 0,0)
 
 unity_state = namedtuple("unity_state", ["velocity", "position", "bearing", "steering_angle"])
 
-def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Connection, state_send: Connection, exit_event):
+def unity_process(camera_array, image_lock, controls_recv: Connection, state_send: Connection, exit_event):
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
   MAX_STEERING = 0
@@ -65,7 +63,8 @@ def unity_process(camera_array, wide_camera_array, image_lock, controls_recv: Co
     """
     gamepad.left_joystick_float(-steer, -gas)
     gamepad.update()
-    time.sleep(.1)
+
+  
 
 
   def format_rcv_string(rcv):

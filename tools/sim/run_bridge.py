@@ -30,12 +30,12 @@ if __name__ == "__main__":
     log.debug('`MetaDriveBridge.run(q)` called. Init Bridge.')
 
   else:
-    simulator_bridge = UnityBridge(args)
+    simulator_bridge = UnityBridge(args, q)
     log.debug('`UnityBridge.run(q)` called. Init Bridge.')
-    # <------ 1) Calls the run function of unityBridge
 
-  p = simulator_bridge.run(q)                 
-
+  # <------ 1) Calls the run function of unityBridge
+  bridge_p, driving_prms_p = simulator_bridge.run(q)  # Run the bridge and the new process
+  
   if args.joystick:
     # start input poll for joystick
     from openpilot.tools.sim.lib.manual_ctrl import wheel_poll_thread
@@ -49,4 +49,6 @@ if __name__ == "__main__":
 
   simulator_bridge.shutdown()
 
-  p.join()
+  # Ensure all processes are joined
+  bridge_p.join()
+  driving_prms_p.join()

@@ -25,8 +25,6 @@ class UnityWorld(World):
   
     self.road_image = np.frombuffer(self.camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
 
-    self.wide_camera_array = None
-    
     self.controls_send, self.controls_recv = Pipe()
     self.state_send, self.state_recv = Pipe()
 
@@ -35,10 +33,9 @@ class UnityWorld(World):
     self.unity_process = multiprocessing.Process(name="unity process",
           target=functools.partial(unity_process, 
                 self.camera_array, 
-                self.wide_camera_array, 
                 self.image_lock, 
-                self.controls_recv, 
-                self.state_send, 
+                self.controls_recv,
+                self.state_send,
                 self.exit_event))
 
     self.unity_process.start()

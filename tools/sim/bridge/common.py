@@ -84,7 +84,6 @@ class SimulatorBridge(ABC):
 
   def log_sm(self):
         line = '\n\n---------------------------------------------------------------------------------\n\n'
-        print('Hello'+line)
         print('controlState:', self.simulated_car.sm['controlsState'] + line)
         print('carControl',  self.simulated_car.sm['carControl'] + line)
         print('carParams', self.simulated_car.sm['carParams'] + line)
@@ -164,7 +163,6 @@ class SimulatorBridge(ABC):
       steer_manual = steer_manual * -40
 
       # Update openpilot on current sensor state
-      # log.debug('Updating the `simulated_sensor`')
       self.simulated_sensors.update(self.simulator_state, self.world)
 
       self.simulated_car.sm.update(0)     
