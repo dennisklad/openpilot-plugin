@@ -7,6 +7,8 @@ from openpilot.selfdrive.pandad.pandad_api_impl import can_list_to_can_capnp
 from openpilot.tools.sim.lib.common import SimulatorState
 from panda.python import Panda
 
+import logging
+log = logging.getLogger('a')
 
 class SimulatedCar:
   """Simulates a honda civic 2022 (panda state + can messages) to OpenPilot"""
@@ -79,8 +81,12 @@ class SimulatedCar:
     msg.append(self.packer.make_can_msg("LKAS_HUD", 2, {}))
 
     self.pm.send('can', can_list_to_can_capnp(msg))
+    
+    #log.debug('`simulated_car.send_can_messages` published a CAN Message with CAPNP')
+    # <---- Sending the CAN Message with capnp!
 
   def send_panda_state(self, simulator_state):
+
     self.sm.update(0)
 
     if self.params.get_bool("ObdMultiplexingEnabled") != self.obd_multiplexing:
@@ -99,7 +105,15 @@ class SimulatedCar:
     }
     self.pm.send('pandaStates', dat)
 
+    if self.idx == 0:
+      log.debug(f'`simulated_car.send_panda_state` published following `pandaStates`:\n{dat}')
+
+
   def update(self, simulator_state: SimulatorState):
+
+    if self.idx == 0:
+      log.info('Updating the simulated car according to the simulator state.')
+
     self.send_can_messages(simulator_state)
 
     if self.idx % 50 == 0: # only send panda states at 2hz

@@ -129,6 +129,7 @@ sentry-sdk = "*"
 PyJWT = "*"
 json-rpc = "*"
 websocket_client = "*"
+vgamepad = "==0.1.0"
 
 # acados deps
 casadi = "*"
@@ -197,6 +198,7 @@ tqdm = "*"
 
 # this is only pinned since 5.15.11 is broken
 pyqt5 = { version = "==5.15.2", markers = "platform_machine == 'x86_64'" } # no aarch64 wheels for macOS/linux
+ipykernel = "^6.29.0"
 
 [build-system]
 requires = ["poetry-core"]

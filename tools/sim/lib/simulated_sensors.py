@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
   from openpilot.tools.sim.lib.common import World, SimulatorState
 
+import logging
+logger = logging.getLogger('a')
 
 class SimulatedSensors:
   """Simulates the C3 sensors (acc, gyro, gps, peripherals, dm state, cameras) to OpenPilot"""
@@ -100,6 +102,14 @@ class SimulatedSensors:
     self.pm.send('driverMonitoringState', dat)
 
   def send_camera_images(self, world: 'World'):
+    """_summary_
+
+    Args:
+        world (World): _description_
+    """
+
+    # logger.debug('`simulated_sensors.send_camera_images` called. Sending YUV road via camerad from the world.road_image.')
+
     world.image_lock.acquire()
     yuv = self.camerad.rgb_to_yuv(world.road_image)
     self.camerad.cam_send_yuv_road(yuv)

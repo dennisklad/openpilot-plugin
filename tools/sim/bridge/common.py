@@ -16,6 +16,9 @@ from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.simulated_car import SimulatedCar
 from openpilot.tools.sim.lib.simulated_sensors import SimulatedSensors
 
+import logging
+log = logging.getLogger('a')
+
 QueueMessage = namedtuple("QueueMessage", ["type", "info"], defaults=[None])
 
 class QueueMessageType(Enum):
@@ -32,7 +35,6 @@ def rk_loop(function, hz, exit_event: threading.Event):
   while not exit_event.is_set():
     function()
     rk.keep_time()
-
 
 class SimulatorBridge(ABC):
   TICKS_PER_FRAME = 5
@@ -68,7 +70,9 @@ class SimulatorBridge(ABC):
   def shutdown(self):
     self._keep_alive = False
 
-  def bridge_keep_alive(self, q: Queue, retries: int):
+  def bridge_keep_alive(self, q: Queue, retries: int):              
+    # <----- 4) Launch _run Function with Queue
+    log.info('`bridge_keep_alive(q)` called. Starting `_run(q)`.')
     try:
       self._run(q)
     finally:
@@ -81,8 +85,10 @@ class SimulatorBridge(ABC):
     if self.world is not None:
       self.world.close(reason)
 
-  def run(self, queue, retries=-1):
-    bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))
+  def run(self, queue, retries=-1):                                
+    # <----- 3) Start bridge_keep_alive Process
+    log.info('`run(q)` called. Starting the `bridge_keep_alive` process.')
+    bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))  
     bridge_p.start()
     return bridge_p
 
@@ -97,24 +103,39 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
   def spawn_world(self, q: Queue) -> World:
     pass
 
+  def log_sm(self):
+        line = '\n\n---------------------------------------------------------------------------------\n\n'
+        print('controlState:', self.simulated_car.sm['controlsState'] + line)
+        print('carControl',  self.simulated_car.sm['carControl'] + line)
+        print('carParams', self.simulated_car.sm['carParams'] + line)
+
   def _run(self, q: Queue):
+    
+    log.debug('`_run(q)` helper function called.')
+    # <----- 5) Spawn World, Car, Sensors and run the simulation
+    
+    log.info('`spawn_world` completed.')
     self.world = self.spawn_world(q)
 
     self.simulated_car = SimulatedCar()
-    self.simulated_sensors = SimulatedSensors(self.dual_camera)
+    log.info('Spawning the SimulatedCar.')
 
-    self.simulated_car_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_car.update, self.simulator_state),
-                                                                        100, self._exit_event))
+    self.simulated_sensors = SimulatedSensors(self.dual_camera)
+    log.info('Spawning the SimulatedSensors.')
+
+    self.simulated_car_thread = threading.Thread(
+      target=rk_loop, args=(functools.partial(self.simulated_car.update, self.simulator_state), 100, self._exit_event))
     self.simulated_car_thread.start()
 
-    self.simulated_camera_thread = threading.Thread(target=rk_loop, args=(functools.partial(self.simulated_sensors.send_camera_images, self.world),
-                                                                        20, self._exit_event))
+    self.simulated_camera_thread = threading.Thread(
+      target=rk_loop, args=(functools.partial(self.simulated_sensors.send_camera_images, self.world), 20, self._exit_event))
     self.simulated_camera_thread.start()
 
     # Simulation tends to be slow in the initial steps. This prevents lagging later
     for _ in range(20):
       self.world.tick()
 
+    print('Alive')
     while self._keep_alive:
       throttle_out = steer_out = brake_out = 0.0
       throttle_op = steer_op = brake_op = 0.0
@@ -166,7 +187,9 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       # Update openpilot on current sensor state
       self.simulated_sensors.update(self.simulator_state, self.world)
 
-      self.simulated_car.sm.update(0)
+      self.simulated_car.sm.update(0)     
+      # <---- Update the simcar through the SubMaster
+      
       controlsState = self.simulated_car.sm['controlsState']
       self.simulator_state.is_engaged = controlsState.active
 
@@ -195,6 +218,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
         self.world.tick()
         self.world.read_cameras()
 
+
       # don't print during test, so no print/IO Block between OP and metadrive processes
       if not self.test_run and self.rk.frame % 25 == 0:
         self.print_status()
@@ -202,3 +226,5 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       self.started.value = True
 
       self.rk.keep_time()
+
+      #self.log_sm()
