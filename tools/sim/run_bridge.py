@@ -13,18 +13,18 @@ log.setLevel(logging.DEBUG)
 
 def create_bridge(dual_camera, high_quality):
   queue: Any = Queue()
-    
+
   if args.sim == 'metadrive':
     simulator_bridge = MetaDriveBridge(dual_camera, high_quality)
     log.debug('`MetaDriveBridge.run(q)` called. Init Bridge.')
 
   else:
-    simulator_bridge = UnityBridge(args, queue)
+    simulator_bridge = UnityBridge(dual_camera, high_quality, queue)
     log.debug('`UnityBridge.run(q)` called. Init Bridge.')
 
-  simulator_process = simulator_bridge.run(queue)
+  simulator_process, driving_prms_process = simulator_bridge.run(queue)
 
-  return queue, simulator_process, simulator_bridge
+  return queue, simulator_process, driving_prms_process, simulator_bridge
 
 def main():
   _, simulator_process, _ = create_bridge(True, False)
@@ -43,11 +43,9 @@ if __name__ == "__main__":
 
   args = parse_args()
 
-  queue, simulator_process, simulator_bridge = create_bridge(args.dual_camera, args.high_quality)
-
   # <------ 1) Calls the run function of unityBridge
-  bridge_p, driving_prms_p = simulator_bridge.run(q)  # Run the bridge and the new process
-  
+  queue, simulator_process, driving_prms_process, simulator_bridge = create_bridge(args.dual_camera, args.high_quality)
+
   if args.joystick:
     # start input poll for joystick
     from openpilot.tools.sim.lib.manual_ctrl import wheel_poll_thread
@@ -62,6 +60,5 @@ if __name__ == "__main__":
   simulator_bridge.shutdown()
 
   # Ensure all processes are joined
-  bridge_p.join()
-  driving_prms_p.join()
+  driving_prms_process.join()
   simulator_process.join()

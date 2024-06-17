@@ -70,7 +70,7 @@ class SimulatorBridge(ABC):
   def shutdown(self):
     self._keep_alive = False
 
-  def bridge_keep_alive(self, q: Queue, retries: int):              
+  def bridge_keep_alive(self, q: Queue, retries: int):
     # <----- 4) Launch _run Function with Queue
     log.info('`bridge_keep_alive(q)` called. Starting `_run(q)`.')
     try:
@@ -85,10 +85,10 @@ class SimulatorBridge(ABC):
     if self.world is not None:
       self.world.close(reason)
 
-  def run(self, queue, retries=-1):                                
+  def run(self, queue, retries=-1):
     # <----- 3) Start bridge_keep_alive Process
     log.info('`run(q)` called. Starting the `bridge_keep_alive` process.')
-    bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))  
+    bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))
     bridge_p.start()
     return bridge_p
 
@@ -110,10 +110,10 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
         print('carParams', self.simulated_car.sm['carParams'] + line)
 
   def _run(self, q: Queue):
-    
+
     log.debug('`_run(q)` helper function called.')
     # <----- 5) Spawn World, Car, Sensors and run the simulation
-    
+
     log.info('`spawn_world` completed.')
     self.world = self.spawn_world(q)
 
@@ -149,6 +149,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       # Read manual controls
       if not q.empty():
         message = q.get()
+        print("READING THE MESSAGE", message)
         if message.type == QueueMessageType.CONTROL_COMMAND:
           m = message.info.split('_')
           if m[0] == "steer":
@@ -187,9 +188,9 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       # Update openpilot on current sensor state
       self.simulated_sensors.update(self.simulator_state, self.world)
 
-      self.simulated_car.sm.update(0)     
+      self.simulated_car.sm.update(0)
       # <---- Update the simcar through the SubMaster
-      
+
       controlsState = self.simulated_car.sm['controlsState']
       self.simulator_state.is_engaged = controlsState.active
 
@@ -221,7 +222,8 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
 
       # don't print during test, so no print/IO Block between OP and metadrive processes
       if not self.test_run and self.rk.frame % 25 == 0:
-        self.print_status()
+        # self.print_status()
+        pass
 
       self.started.value = True
 
