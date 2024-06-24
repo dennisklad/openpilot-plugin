@@ -4,26 +4,33 @@ import multiprocessing
 import numpy as np
 import time
 
+from openpilot.tools.sim.bridge.common import QueueMessage, QueueMessageType
+
 from multiprocessing import Pipe, Array
 from openpilot.tools.sim.bridge.unity.unity_process import unity_process, unity_state
 from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.camerad import W, H
-from openpilot.tools.sim.lib.common import vec3
 
 import logging
 log = logging.getLogger('a')
 
 class UnityWorld(World):
 
-  def __init__(self, queue):
+  def __init__(self, queue, dual_camera=False):
 
     log.debug('Starting init of UnityWorld')
 
-    super().__init__(dual_camera=False)
+    super().__init__(dual_camera)
+
+    self.queue = queue
 
     self.camera_array = Array(ctypes.c_uint8, W*H*3)
-
     self.road_image = np.frombuffer(self.camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
+
+    self.wide_camera_array = None
+    if dual_camera:
+      self.wide_camera_array = Array(ctypes.c_uint8, W*H*3)
+      self.wide_road_image = np.frombuffer(self.wide_camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
 
     self.controls_send, self.controls_recv = Pipe()
     self.state_send, self.state_recv = Pipe()
@@ -32,7 +39,9 @@ class UnityWorld(World):
 
     self.unity_process = multiprocessing.Process(name="unity process",
           target=functools.partial(unity_process,
+                dual_camera,
                 self.camera_array,
+                self.wide_camera_array,
                 self.image_lock,
                 self.controls_recv,
                 self.state_send,
@@ -91,8 +100,7 @@ class UnityWorld(World):
   def reset(self):
     self.should_reset = True
 
-  def close(self):
+  def close(self, reason):
+    self.status_q.put(QueueMessage(QueueMessageType.CLOSE_STATUS, reason))
     self.exit_event.set()
-
-    # TODO: Close correctly
     self.unity_process.join()

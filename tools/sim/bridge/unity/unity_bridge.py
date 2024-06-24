@@ -1,6 +1,5 @@
 from openpilot.tools.sim.bridge.common import SimulatorBridge, control_cmd_gen
 from openpilot.tools.sim.bridge.unity.unity_world import UnityWorld
-from openpilot.tools.sim.lib.camerad import W, H
 from openpilot.tools.sim.lib.common import World
 from multiprocessing import Process, Queue
 
@@ -25,7 +24,7 @@ class UnityBridge(SimulatorBridge):
         World:
     """
     log.debug("`UnityBridge.spawn_world` called. Generating empty UnityWorld.")
-    return UnityWorld(queue)
+    return UnityWorld(queue, self.dual_camera)
 
   def get_driving_prms(self, queue: Queue):
     """This function requires access to the queue in order to add the parsed driving instructions
