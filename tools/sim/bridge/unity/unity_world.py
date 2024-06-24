@@ -93,7 +93,6 @@ class UnityWorld(World):
   def read_cameras(self):
     pass
 
-
   def tick(self):
     pass
 
