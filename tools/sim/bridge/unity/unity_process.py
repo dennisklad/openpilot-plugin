@@ -16,9 +16,11 @@ from threading import Thread
 C3_POSITION = Vec3(0.0, 0, 1.22)
 C3_HPR = Vec3(0, 0,0)
 
-unity_state = namedtuple("unity_state", ["velocity", "position", "bearing", "steering_angle"])
+unity_simulation_state = namedtuple("unity_simulation_state", ["running", "done", "done_info"])
+unity_vehicle_state = namedtuple("unity_vehicle_state", ["velocity", "position", "bearing", "steering_angle"])
 
-def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock, controls_recv: Connection, state_send: Connection, exit_event):
+def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock,
+                  controls_recv: Connection, simulation_state_send: Connection, vehicle_state_send: Connection, exit_event):
 
   road_image = np.frombuffer(camera_array.get_obj(), dtype=np.uint8).reshape((H, W, 3))
   if dual_camera:
@@ -102,7 +104,7 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
 
   def get_state():
     """Threaded task that pulls from the state socket (pushed from unity).
-    Decodes the unity state and created a unity_state named tuple.
+    Decodes the unity state and created a unity_vehicle_state named tuple.
     This is then send to the state_send pipe to unity_world.
     """
     state_socket = zmq.Context().socket(zmq.PULL)
@@ -125,19 +127,27 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
       MAX_STEERING = int(state[-2])
       is_engaged = bool(state[-1] == '1')
 
-      ustate = unity_state(
+      vehicle_state = unity_vehicle_state(
         velocity = vec3(x=eval(state[0])[0], y=eval(state[0])[1], z=eval(state[0])[2]),
         position = eval(state[1]),
         bearing  = float(state[2]),
         steering_angle = steer_angle * MAX_STEERING,
       )
 
-      state_send.send(ustate)
+      vehicle_state_send.send(vehicle_state)
 
 
   #########################
   #       MAIN CODE       #
   #########################
+
+  simulation_state = unity_simulation_state(
+    running=True,
+    done=False,
+    done_info=None,
+  )
+  simulation_state_send.send(simulation_state)
+
 
   rk = Ratekeeper(100, None)
 

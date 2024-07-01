@@ -14,7 +14,7 @@ class UnityBridge(SimulatorBridge):
   def __init__(self, dual_camera, high_quality, queue):
 
     self.queue = queue
-    super(UnityBridge, self).__init__(dual_camera, high_quality)   # <-------  2) Initialise SimulatorBridge
+    super().__init__(dual_camera, high_quality)   # <-------  2) Initialise SimulatorBridge
 
   def spawn_world(self, queue: Queue) -> World:
     """This function is called once when initiating the bridge.

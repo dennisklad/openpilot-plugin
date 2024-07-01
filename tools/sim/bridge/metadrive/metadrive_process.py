@@ -104,8 +104,8 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
       position=env.vehicle.position,
       bearing=float(math.degrees(env.vehicle.heading_theta)),
       steering_angle=env.vehicle.steering * env.vehicle.MAX_STEERING
-    )    
-    
+    )
+
     """
     State:
 
@@ -113,7 +113,7 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
 
       Position: (204.20950317382812, 52.359718322753906)
 
-      Bearing:  
+      Bearing:
           Heading_theta: 0.9453919600997569
           Value:         54.16696929931639,
 
@@ -121,25 +121,7 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
           Steering: 0.03315471410751343
           Max Steering: 60
     """
-    
-#     print(f"""
-# State:
 
-# Velocity: {vec3(x=float(env.vehicle.velocity[0]), y=float(env.vehicle.velocity[1]), z=0)}
-
-# Position: {env.vehicle.position}
-
-# Bearing:  
-#     Heading_theta: {env.vehicle.heading_theta}
-#     Value:         {float(math.degrees(env.vehicle.heading_theta))},
-
-# Steering_angle:
-#     Steering: {env.vehicle.steering}
-#     Max Steering: {env.vehicle.MAX_STEERING}
-# """)
-
-    print(f"Steering: {env.vehicle.steering}")
-    
     vehicle_state_send.send(vehicle_state)
 
     if controls_recv.poll(0):
