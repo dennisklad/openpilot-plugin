@@ -62,7 +62,7 @@ class SimulatedSensors:
     if not simulator_state.valid:
       return
 
-    print("Sending gpsLocationExternal")
+    # print("Sending gpsLocationExternal")
 
     # transform from vel to NED
     velNED = [
@@ -135,7 +135,7 @@ class SimulatedSensors:
   def update(self, simulator_state: 'SimulatorState', world: 'World'):
     now = time.time()
     self.send_imu_message(simulator_state)
-    self.send_liveLocationKalman(simulator_state)
+    # self.send_liveLocationKalman(simulator_state)
     self.send_gps_message(simulator_state)
 
     if (now - self.last_dmon_update) > DT_DMON/2:
