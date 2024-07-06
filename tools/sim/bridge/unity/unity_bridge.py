@@ -33,11 +33,13 @@ class UnityBridge(SimulatorBridge):
     Args:
         q (Queue): The queue processing the requests
     """
-    driving_socket = zmq.Context().socket(zmq.PULL)
-    driving_socket.bind("tcp://127.0.0.1:5559")
+
+    # Socket to receive driving instructions from Unity
+    rcv_driving_instr_socket = zmq.Context().socket(zmq.PULL)
+    rcv_driving_instr_socket.bind("tcp://127.0.0.1:5559")
 
     while 1:
-      rcv = driving_socket.recv().decode("utf-8")
+      rcv = rcv_driving_instr_socket.recv().decode("utf-8")
       queue.put(control_cmd_gen(rcv))
 
   # This is an override of the parent function to add the driving_prms
