@@ -13,6 +13,8 @@ from openpilot.tools.sim.lib.camerad import W, H
 
 from threading import Thread
 
+import time
+
 C3_POSITION = Vec3(0.0, 0, 1.22)
 C3_HPR = Vec3(0, 0,0)
 
@@ -65,6 +67,9 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
     if is_engaged:
       control_gamepad(gas, steer)
 
+    else:
+      control_gamepad(0,0)
+
 
   def control_gamepad(gas:float, steer:float):
     """This function changes the left-stick and presses buttons on the virtual gamepad.
@@ -82,9 +87,9 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
 
     # Release the handbreak if it's a clear drive indication
     if is_handbrake and gas > 0.5:
-      print("releasing the handbrake...")
-      send_driving_instr_socket.send_string('release_handbrake')
       is_handbrake = False
+      send_driving_instr_socket.send_string('release_handbrake')
+      print("releasing the handbrake...")
 
     # Ignore inputs will in parking mode
     elif is_handbrake and gas <= 0.5:
@@ -152,9 +157,9 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
       # 'vec3-velocity | position | heading_theta or bearing | max steer | is_engaged | is_reversing'
       state = rcv.split('|')
 
-      MAX_STEERING = int(state[-3])
-      is_engaged = bool(state[-2] == '1')
-      is_reverse = bool(state[-1] == '1')
+      MAX_STEERING = int(state[3])
+      is_engaged = bool(state[4] == '1')
+      is_reverse = bool(state[5] == '1')
       vehicle_state = unity_vehicle_state(
         velocity = vec3(x=eval(state[0])[0], y=eval(state[0])[1], z=eval(state[0])[2]),
         position = eval(state[1]),
@@ -206,6 +211,8 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
 
   steer_ratio = 8
   vc = [0,0]
+
+  send_driving_instr_socket.send_string('connected')
 
   while not exit_event.is_set():
 
