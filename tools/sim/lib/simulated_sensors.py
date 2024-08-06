@@ -41,9 +41,30 @@ class SimulatedSensors:
       dat.gyroscope.gyroUncalibrated.v = [simulator_state.imu.gyroscope.x, simulator_state.imu.gyroscope.y, simulator_state.imu.gyroscope.z]
       self.pm.send('gyroscope', dat)
 
+
+  def send_liveLocationKalman(self, simulator_state: 'SimulatorState', location=(32.7174, -117.16277)):
+
+    if not simulator_state.valid:
+      return
+
+    print("Sending liveLocationKalman")
+
+    dat = messaging.new_message('liveLocationKalman')
+    dat.liveLocationKalman.positionGeodetic = {'value': [*location, 0], 'std': [0., 0., 0.], 'valid': True}
+    dat.liveLocationKalman.positionECEF = {'value': [0., 0., 0.], 'std': [0., 0., 0.], 'valid': True}
+    dat.liveLocationKalman.calibratedOrientationNED = {'value': [0., 0., 0.], 'std': [0., 0., 0.], 'valid': True}
+    dat.liveLocationKalman.velocityCalibrated = {'value': [0., 0., 0.], 'std': [0., 0., 0.], 'valid': True}
+    dat.liveLocationKalman.status = 'valid'
+    dat.liveLocationKalman.gpsOK = True
+
+    self.pm.send('liveLocationKalman', dat)
+
+
   def send_gps_message(self, simulator_state: 'SimulatorState'):
     if not simulator_state.valid:
       return
+
+    # print("Sending gpsLocationExternal")
 
     # transform from vel to NED
     velNED = [
@@ -101,6 +122,9 @@ class SimulatedSensors:
     }
     self.pm.send('driverMonitoringState', dat)
 
+
+
+
   def send_camera_images(self, world: 'World'):
     """_summary_
 
@@ -121,6 +145,7 @@ class SimulatedSensors:
   def update(self, simulator_state: 'SimulatorState', world: 'World'):
     now = time.time()
     self.send_imu_message(simulator_state)
+    # self.send_liveLocationKalman(simulator_state)
     self.send_gps_message(simulator_state)
 
     if (now - self.last_dmon_update) > DT_DMON/2:
