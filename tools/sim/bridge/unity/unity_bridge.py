@@ -2,6 +2,7 @@ from openpilot.tools.sim.bridge.common import SimulatorBridge, control_cmd_gen
 from openpilot.tools.sim.bridge.unity.unity_world import UnityWorld
 from openpilot.tools.sim.lib.common import World
 from multiprocessing import Process, Queue
+
 import zmq
 
 import logging
@@ -16,7 +17,6 @@ class UnityBridge(SimulatorBridge):
     super().__init__(dual_camera, high_quality)   # <-------  2) Initialise SimulatorBridge
 
   def spawn_world(self, queue: Queue) -> World:
-
     """This function is called once when initiating the bridge.
     The call is found in the _run function of /tools/sim/bridge/common.py
 
@@ -27,7 +27,6 @@ class UnityBridge(SimulatorBridge):
     return UnityWorld(queue, self.dual_camera)
 
   def get_driving_prms(self, queue: Queue):
-
     """This function requires access to the queue in order to add the parsed driving instructions
     (like turn signals and speed limits) using a new PUSH-PULL socket with Unity.
 

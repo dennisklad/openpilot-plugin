@@ -38,7 +38,6 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
 
   def get_image(cam):
     """Pulls the dashcam image from the socket.
-
     The image is converted from bytes into an array with OpenCV.
 
     Returns:
@@ -54,6 +53,7 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
       nparr = np.frombuffer(image_bytes, np.uint8)
       return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
+
   def step(vc):
     """Executes a step by pushing the controls to the controls_socket.
     This string is then processed by the unity PULL socket.
@@ -62,7 +62,6 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
         vc (tuple): Both steering and acceleration values as [-1; 1]
     """
     steer, gas = vc
-
     print(f"Ctl to Unity: acc={gas:>6.3f}, str={steer:>6.3f} | State to OP: {print_rcv}")
 
     if is_engaged:
@@ -70,6 +69,7 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
 
     else:
       control_gamepad(0,0)
+
 
   def control_gamepad(gas:float, steer:float):
     """This function changes the left-stick and presses buttons on the virtual gamepad.
@@ -119,13 +119,13 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
   def format_rcv_string(rcv):
     """This helper function generated a new string to display the unity state that is received by OP.
     This string has 1 floating point and consistent spacing.
+
     Args:
       rcv (string): The decoded string received from Unity
 
     Returns:
       string: The formatted string to be displayed
     """
-
     l = []
     for e in rcv.split('|'):
       if '(' in e: # If tuple
@@ -196,7 +196,6 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
   send_driving_instr_socket = zmq.Context().socket(zmq.PUSH)
   send_driving_instr_socket.connect("tcp://127.0.0.1:5560")
 
-
   #########################
   #       MAIN CODE       #
   #########################
@@ -207,7 +206,7 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
     done_info=None,
   )
   simulation_state_send.send(simulation_state)
-        
+
   rk = Ratekeeper(100, None)
 
   # Define the virtual gamepad to control unity
@@ -242,7 +241,6 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
 
       if dual_camera:
         wide_road_image[...] = get_image("rgb_wide")
-
 
       image_lock.release()
 
