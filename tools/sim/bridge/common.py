@@ -72,6 +72,7 @@ class SimulatorBridge(ABC):
     self._keep_alive = False
 
   def bridge_keep_alive(self, q: Queue, retries: int):
+    
     # <----- 4) Launch _run Function with Queue
     log.info('`bridge_keep_alive(q)` called. Starting `_run(q)`.')
     try:
@@ -90,6 +91,7 @@ class SimulatorBridge(ABC):
     # <----- 3) Start bridge_keep_alive Process
     log.info('`run(q)` called. Starting the `bridge_keep_alive` process.')
     bridge_p = Process(name="bridge", target=self.bridge_keep_alive, args=(queue, retries))
+
     bridge_p.start()
     return bridge_p
 
@@ -114,7 +116,7 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
 
     log.debug('`_run(q)` helper function called.')
     # <----- 5) Spawn World, Car, Sensors and run the simulation
-
+    
     log.info('`spawn_world` completed.')
     self.world = self.spawn_world(q)
 
@@ -189,9 +191,9 @@ Ignition: {self.simulator_state.ignition} Engaged: {self.simulator_state.is_enga
       # Update openpilot on current sensor state
       self.simulated_sensors.update(self.simulator_state, self.world)
 
-      self.simulated_car.sm.update(0)
+      self.simulated_car.sm.update(0)     
       # <---- Update the simcar through the SubMaster
-
+      
       controlsState = self.simulated_car.sm['controlsState']
       self.simulator_state.is_engaged = controlsState.active
 

@@ -105,7 +105,7 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
       bearing=float(math.degrees(env.vehicle.heading_theta)),
       steering_angle=env.vehicle.steering * env.vehicle.MAX_STEERING
     )
-
+    
     """
     State:
 

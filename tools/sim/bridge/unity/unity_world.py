@@ -11,6 +11,7 @@ from openpilot.tools.sim.bridge.unity.unity_process import (unity_process, unity
 from openpilot.tools.sim.lib.common import SimulatorState, World
 from openpilot.tools.sim.lib.camerad import W, H
 
+
 import logging
 log = logging.getLogger('a')
 
@@ -32,6 +33,7 @@ class UnityWorld(World):
     self.controls_send, self.controls_recv = Pipe()
     self.simulation_state_send, self.simulation_state_recv = Pipe()
     self.vehicle_state_send, self.vehicle_state_recv = Pipe()
+
 
     self.exit_event = multiprocessing.Event()
 
@@ -86,6 +88,7 @@ class UnityWorld(World):
     while self.vehicle_state_recv.poll(0):
       # log.info('Reading the state of the sensors ...' + str(self.state_recv.recv()))
       temp_state: unity_vehicle_state = self.vehicle_state_recv.recv()
+
       state.velocity = temp_state.velocity
       state.bearing = temp_state.bearing
       state.steering_angle = temp_state.steering_angle
@@ -104,4 +107,5 @@ class UnityWorld(World):
   def close(self, reason):
     self.status_q.put(QueueMessage(QueueMessageType.CLOSE_STATUS, reason))
     self.exit_event.set()
+
     self.unity_process.join()
