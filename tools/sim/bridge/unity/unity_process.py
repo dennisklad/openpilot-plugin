@@ -94,6 +94,9 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
     # Ignore inputs will in parking mode
     elif is_handbrake and gas <= 0.5:
       print("in parking...")
+      # Reset the joystick
+      gamepad.left_joystick_float(0, 0)
+      gamepad.update()
 
     # Block OP from going in reverse
     elif gas < 0 and is_reverse:

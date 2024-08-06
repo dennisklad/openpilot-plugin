@@ -47,6 +47,7 @@ class SimulatorBridge(ABC):
     self.rk = Ratekeeper(100, None)
 
     self.dual_camera = dual_camera
+    print("Dual Cam:", self.dual_camera)
     self.high_quality = high_quality
 
     self._exit_event = threading.Event()
