@@ -245,3 +245,5 @@ def unity_process(dual_camera: bool, camera_array, wide_camera_array, image_lock
       image_lock.release()
 
     rk.keep_time()
+
+  send_driving_instr_socket.send_string('disconnected')
