@@ -53,7 +53,7 @@ poetry shell
 
 2. Navigate to this repository:
 ``` bash
-cd tools/sim/bridge
+cd tools/sim/
 ```
 
 3. Launch the Openpilot UI:
@@ -67,7 +67,7 @@ cd tools/sim/bridge
 ```
 You can still run the MetaDrive simulator by providing the argument:
 ``` bash
-./run_bridge.py --sim=metadrive
+./run_bridge.py --sim=metadrive [--dual_camera]
 ```
 
 
