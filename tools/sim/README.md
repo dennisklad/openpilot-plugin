@@ -1,50 +1,83 @@
-openpilot in simulator
-=====================
+# Master Thesis
+## Concept and Evaluation of a Plugin</br>for enabling Autonomous Driving Simulation in Game Engines
+Dionysios Kladis | 391539 | Technische Universität Berlin | Open Distributed Systems | Fakultät IV
 
-openpilot implements a [bridge](run_bridge.py) that allows it to run in the [MetaDrive simulator](https://github.com/metadriverse/metadrive).
+https://github.com/user-attachments/assets/c3ad8e70-9f0f-4aa0-868a-876b56ff5448
 
-## Launching openpilot
-First, start openpilot.
+--
+
+## Native setup of Openpilot on Ubuntu 24.04
+
+**1. Clone openpilot**
+
+NOTE: This repository uses Git LFS for large files. Ensure you have [Git LFS](https://git-lfs.com/) installed and set up before cloning or working with it.
+
+Either do a partial clone for faster download:
 ``` bash
-# Run locally
-./tools/sim/launch_openpilot.sh
+git clone --filter=blob:none --recurse-submodules --also-filter-submodules https://github.com/dennisklad/openpilot-plugin.git
 ```
 
-## Bridge usage
-```
-$ ./run_bridge.py -h
-usage: run_bridge.py [-h] [--joystick] [--high_quality] [--dual_camera]
-Bridge between the simulator and openpilot.
-
-options:
-  -h, --help            show this help message and exit
-  --joystick
-  --high_quality
-  --dual_camera
-```
-
-#### Bridge Controls:
-- To engage openpilot press 2, then press 1 to increase the speed and 2 to decrease.
-- To disengage, press "S" (simulates a user brake)
-
-#### All inputs:
-
-```
-| key  |   functionality       |
-|------|-----------------------|
-|  1   | Cruise Resume / Accel |
-|  2   | Cruise Set    / Decel |
-|  3   | Cruise Cancel         |
-|  r   | Reset Simulation      |
-|  i   | Toggle Ignition       |
-|  q   | Exit all              |
-| wasd | Control manually      |
-```
-
-## MetaDrive
-
-### Launching Metadrive
-Start bridge processes located in tools/sim:
+or do a full clone:
 ``` bash
-./run_bridge.py
+git clone --recurse-submodules https://github.com/dennisklad/openpilot-plugin.git
 ```
+
+**2. Run the setup script**
+
+``` bash
+cd openpilot-plugin
+git lfs pull
+tools/ubuntu_setup.sh
+```
+
+Activate a shell with the Python dependencies installed:
+``` bash
+poetry shell
+```
+
+**3. Build openpilot**
+
+``` bash
+scons -u -j$(nproc)
+```
+
+
+## Running the bridge
+
+We are going to require two terminals to simulate Openpilot. The first one will launch the Openpilot UI and the second will run the bridge.
+
+1. Open a new terminal and activate the shell:
+``` bash
+poetry shell
+```
+
+2. Navigate to this repository:
+``` bash
+cd tools/sim/bridge
+```
+
+3. Launch the Openpilot UI:
+``` bash
+./launch_openpilot.sh
+```
+
+4.  Repeat steps 1. and 2. to open a new terminal. Then run the bridge script:
+``` bash
+./run_bridge.py [--dual_camera]
+```
+You can still run the MetaDrive simulator by providing the argument:
+``` bash
+./run_bridge.py --sim=metadrive
+```
+
+
+## Unity Setup
+
+Create a map and drag the [Bridge.cs](https://github.com/dennisklad/unity-bridge/blob/bf271c500198193c7f9bfbee58fe22642ad96019/Assets/Scripts/Bridge.cs) script to the vehicle you want Openpilot to drive.
+
+Set the required variables as necessary. For a dual camera setup (recommended) two different camera objects are required as references. 
+Additionally, we recommend a FOV of 40 degrees for the road camera and 120 degrees for the wide camera. If Openpilot is over- or understeering, then you have to adjust the `MAX_STEERING` value in the script. Finally, a HUD that displayes the status of the bridge is available.
+
+After launching the game, a connection should be automatically build by the bridge terminal, as shown in the demo above, showing the exact values transmitted between the applications and the Openpilot UI should show the camera feed from Unity.
+
+Finally, pressing the `E` key should engage Openpilot and the vehicle should now be driving automatically.
